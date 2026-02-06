@@ -5,60 +5,28 @@ export const LOCATIONS = {
   BOAT_DESTINATIONS: ["Icacos", "Palomino", "Piñero", "Culebra"],
 };
 
-// Jet Ski pricing: location -> available durations
+// Jet Ski pricing: location -> available durations IN MINUTES
 export const JET_SKI_AVAILABILITY: Record<string, Record<number, number>> = {
   "San Juan": {
-    // not available
+    60: 120, // 1 hour only
   },
   "Luquillo": {
-    0.5: 75,   // 30 mins
-    1: 120,
-    2: 240,
-    3: 360,
-    4: 480,
-    5: 600,
-    6: 720,
-    7: 840,
-    8: 960,
-    9: 1080,
+    30: 75,  // 30 minutes
+    60: 120, // 1 hour
   },
   "Fajardo": {
-    0.25: 50,  // 15 mins
-    0.5: 75,   // 30 mins
-    1: 120,
-    2: 240,
-    3: 360,
-    4: 480,
-    5: 600,
-    6: 720,
-    7: 840,
-    8: 960,
-    9: 1080,
+    15: 50,  // 15 minutes
+    30: 75,  // 30 minutes
+    60: 120, // 1 hour
   },
   "Ceiba": {
-    0.5: 75,   // 30 mins
-    1: 120,
-    2: 240,
-    3: 360,
-    4: 480,
-    5: 600,
-    6: 720,
-    7: 840,
-    8: 960,
-    9: 1080,
+    30: 75,  // 30 minutes
+    60: 120, // 1 hour
   },
   "Naguabo": {
-    0.25: 50,  // 15 mins
-    0.5: 75,   // 30 mins
-    1: 120,
-    2: 240,
-    3: 360,
-    4: 480,
-    5: 600,
-    6: 720,
-    7: 840,
-    8: 960,
-    9: 1080,
+    15: 50,  // 15 minutes
+    30: 75,  // 30 minutes
+    60: 120, // 1 hour
   },
 };
 
@@ -72,7 +40,7 @@ export const BOAT_HOURLY_RATES: Record<number, number> = {
   6: 650,
   7: 750,
   8: 850,
-  9: 960,
+  9: 960, // Extrapolated from pattern
 };
 
 // Boat availability: pickup -> destination -> min duration (hours)
@@ -106,6 +74,110 @@ export const BOAT_AVAILABILITY: Record<string, Record<string, number>> = {
     "Palomino": 3,
     "Piñero": 3,
     "Culebra": 6,
+  },
+};
+
+// Boat + Jet Ski Package Pricing from Excel
+export const BOAT_JETSKI_PACKAGE_PRICES: Record<string, Record<number, Record<string, { min: number; max: number }>>> = {
+  "San Juan": {
+    1: { // 1 jet ski
+      "Icacos": { min: 710, max: 1370 },
+      "Palomino": { min: 710, max: 1370 },
+      "Piñero": { min: 710, max: 1370 },
+      "Culebra": { min: 1370, max: 1370 }, // Only 6 hours
+    },
+    2: { // 2 jet skis
+      "Icacos": { min: 1070, max: 2090 },
+      "Palomino": { min: 1070, max: 2090 },
+      "Piñero": { min: 1070, max: 2090 },
+      "Culebra": { min: 2090, max: 2090 }, // Only 6 hours
+    },
+    3: { // 3 jet skis
+      "Icacos": { min: 1430, max: 2810 },
+      "Palomino": { min: 1430, max: 2810 },
+      "Piñero": { min: 1430, max: 2810 },
+      "Culebra": { min: 2810, max: 2810 }, // Only 6 hours
+    },
+  },
+  "Luquillo": {
+    1: {
+      "Icacos": { min: 270, max: 1370 },
+      "Palomino": { min: 270, max: 1370 },
+      "Piñero": { min: 710, max: 1370 },
+      "Culebra": { min: 1370, max: 1370 },
+    },
+    2: {
+      "Icacos": { min: 390, max: 2090 },
+      "Palomino": { min: 390, max: 2090 },
+      "Piñero": { min: 1070, max: 2090 },
+      "Culebra": { min: 2090, max: 2090 },
+    },
+    3: {
+      "Icacos": { min: 510, max: 2810 },
+      "Palomino": { min: 510, max: 2810 },
+      "Piñero": { min: 1430, max: 2810 },
+      "Culebra": { min: 2810, max: 2810 },
+    },
+  },
+  "Fajardo": {
+    1: {
+      "Icacos": { min: 270, max: 1370 },
+      "Palomino": { min: 270, max: 1370 },
+      "Piñero": { min: 710, max: 1370 },
+      "Culebra": { min: 1370, max: 1370 },
+    },
+    2: {
+      "Icacos": { min: 390, max: 2090 },
+      "Palomino": { min: 390, max: 2090 },
+      "Piñero": { min: 1070, max: 2090 },
+      "Culebra": { min: 2090, max: 2090 },
+    },
+    3: {
+      "Icacos": { min: 510, max: 2810 },
+      "Palomino": { min: 510, max: 2810 },
+      "Piñero": { min: 1430, max: 2810 },
+      "Culebra": { min: 2810, max: 2810 },
+    },
+  },
+  "Ceiba": {
+    1: {
+      "Icacos": { min: 710, max: 1370 },
+      "Palomino": { min: 710, max: 1370 },
+      "Piñero": { min: 270, max: 1370 },
+      "Culebra": { min: 1370, max: 1370 },
+    },
+    2: {
+      "Icacos": { min: 1070, max: 2090 },
+      "Palomino": { min: 1070, max: 2090 },
+      "Piñero": { min: 390, max: 2090 },
+      "Culebra": { min: 2090, max: 2090 },
+    },
+    3: {
+      "Icacos": { min: 1430, max: 2810 },
+      "Palomino": { min: 1430, max: 2810 },
+      "Piñero": { min: 510, max: 2810 },
+      "Culebra": { min: 2810, max: 2810 },
+    },
+  },
+  "Naguabo": {
+    1: {
+      "Icacos": { min: 710, max: 1370 },
+      "Palomino": { min: 710, max: 1370 },
+      "Piñero": { min: 710, max: 1370 },
+      "Culebra": { min: 1370, max: 1370 },
+    },
+    2: {
+      "Icacos": { min: 1070, max: 2090 },
+      "Palomino": { min: 1070, max: 2090 },
+      "Piñero": { min: 1070, max: 2090 },
+      "Culebra": { min: 2090, max: 2090 },
+    },
+    3: {
+      "Icacos": { min: 1430, max: 2810 },
+      "Palomino": { min: 1430, max: 2810 },
+      "Piñero": { min: 1430, max: 2810 },
+      "Culebra": { min: 2810, max: 2810 },
+    },
   },
 };
 
@@ -179,19 +251,119 @@ export function getAvailableDurations(rentalType: "jetski" | "boat", pickup: str
   return [];
 }
 
-export function calculateJetSkiPrice(numJetSkis: number, durationHours: number): number {
-  return numJetSkis * (durationHours === 0.25 ? 50 : durationHours === 0.5 ? 75 : 120 * durationHours);
+// Updated: Get jet ski durations in minutes
+export function getAvailableJetSkiDurations(pickup: string): number[] {
+  const availability = JET_SKI_AVAILABILITY[pickup] || {};
+  return Object.keys(availability)
+    .map(Number)
+    .filter(dur => availability[dur] !== undefined)
+    .sort((a, b) => a - b);
 }
 
-export function calculateBoatPrice(durationHours: number): number {
-  return BOAT_HOURLY_RATES[durationHours] || 0;
+// Updated: Calculate jet ski price manually according to requirements
+export function calculateJetSkiPriceManual(numJetSkis: number, durationHours: number, pickup: string): number {
+  // Convert hours to minutes for jet ski calculations
+  const durationMinutes = durationHours * 60;
+  
+  // Get available durations for this pickup location
+  const availableDurations = getAvailableJetSkiDurations(pickup);
+  
+  // If duration is exactly 15, 30, or 60 minutes, use fixed pricing
+  if (durationMinutes === 15 && availableDurations.includes(15)) {
+    return 50 * numJetSkis;
+  } else if (durationMinutes === 30 && availableDurations.includes(30)) {
+    return 75 * numJetSkis;
+  } else if (durationMinutes === 60 && availableDurations.includes(60)) {
+    // 1 hour = $120
+    return 120 * numJetSkis;
+  } else if (durationMinutes > 60) {
+    // Over 1 hour: $120 for first hour + $120 for each additional hour
+    const fullHours = Math.ceil(durationHours);
+    return (120 + (Math.max(0, fullHours - 1) * 120)) * numJetSkis;
+  }
+  
+  // Fallback: $120 per hour
+  return 120 * durationHours * numJetSkis;
 }
 
+// Calculate boat price using manual rates
+export function calculateBoatPriceManual(hours: number): number {
+  return BOAT_HOURLY_RATES[hours] || hours * 108; // Fallback average rate
+}
+
+// Calculate Boat + Jet Ski package price from Excel data
+export function calculateBoatJetSkiPackagePrice(
+  pickup: string,
+  destination: string,
+  durationHours: number,
+  numJetSkis: number
+): number {
+  // Check if we have package pricing for this combination
+  const packagePrices = BOAT_JETSKI_PACKAGE_PRICES[pickup]?.[numJetSkis]?.[destination];
+  
+  if (!packagePrices) {
+    return 0; // Will trigger fallback calculation
+  }
+  
+  const { min, max } = packagePrices;
+  
+  // For Culebra, it's always 6 hours fixed price
+  if (destination === "Culebra") {
+    return max; // Fixed price for 6 hours
+  }
+  
+  // For other destinations, interpolate between min and max based on duration
+  // Min price is for minimum duration (1 or 3 hours), max price is for 6 hours
+  const minDuration = BOAT_AVAILABILITY[pickup]?.[destination] || 1;
+  
+  if (durationHours <= minDuration) {
+    return min;
+  } else if (durationHours >= 6) {
+    return max;
+  } else {
+    // Linear interpolation between min and max
+    const progress = (durationHours - minDuration) / (6 - minDuration);
+    return Math.round(min + (max - min) * progress);
+  }
+}
+
+// Get minimum duration based on pickup and destination
+export function getMinimumDuration(pickup: string, destination: string): number {
+  return BOAT_AVAILABILITY[pickup]?.[destination] || 1;
+}
+
+// Get max people for rental type
+export function getMaxPeopleForRentalType(rentalType: string, numJetSkis: number): number {
+  switch (rentalType) {
+    case "Jet Ski":
+      return numJetSkis * 2; // 2 per jet ski
+    case "Boat":
+      return 6; // Paying passengers only (boat capacity 10, but only 6 paying)
+    case "Boat+Jet Ski":
+      // max.8 for boat+1jet ski, max.10 for boat+ 2jet skis, max.12 for boat +3 jet skis
+      return 6 + (numJetSkis * 2); // 6 from boat + 2 per jet ski
+    default:
+      return 1;
+  }
+}
+
+// Update water sport pricing
 export function calculateWaterSportPrice(sport: string, numPeople: number): number {
   const sportInfo = WATER_SPORT_COSTS[sport];
   if (!sportInfo) return 0;
-  // For now, all water sports charged per person (day or hour unit is informational)
+  
+  // For now, all water sports charged per person
   return numPeople * sportInfo.cost;
+}
+
+// Original function kept for compatibility
+export function calculateJetSkiPrice(numJetSkis: number, durationHours: number): number {
+  return calculateJetSkiPriceManual(numJetSkis, durationHours, "Fajardo"); // Default to Fajardo for compatibility
+}
+
+// Original function kept for compatibility
+export function calculateBoatPrice(durationHours: number): number {
+  return calculateBoatPriceManual(durationHours);
 }
 
 export function canSelectTime(pickupTime: number, durationHours: number, dayType: "Mon-Thu" | "Fri-Sun"): boolean {
@@ -212,4 +384,34 @@ export function formatDateForDisplay(dateStr: string): string {
   const month = formatMonthShort(date);
   const year = date.getFullYear();
   return `${month} ${day}, ${year}`;
+}
+
+// NEW: Get extended jet ski durations beyond 1 hour
+export function getExtendedJetSkiDurations(): number[] {
+  // 1h, 2h, 3h, 4h, 5h, 6h, 7h, 8h, 9h max
+  return [1, 2, 3, 4, 5, 6, 7, 8, 9];
+}
+
+// NEW: Convert minutes to hours for display
+export function minutesToHours(minutes: number): number {
+  return minutes / 60;
+}
+
+// NEW: Convert hours to minutes for calculation
+export function hoursToMinutes(hours: number): number {
+  return hours * 60;
+}
+
+// NEW: Check if duration is available for jet ski at location
+export function isJetSkiDurationAvailable(pickup: string, durationMinutes: number): boolean {
+  const available = JET_SKI_AVAILABILITY[pickup];
+  if (!available) return false;
+  
+  // For durations over 1 hour, all are available as long as 1 hour is available
+  if (durationMinutes > 60) {
+    return available[60] !== undefined;
+  }
+  
+  // For 15, 30, 60 minutes, check specific availability
+  return available[durationMinutes] !== undefined;
 }

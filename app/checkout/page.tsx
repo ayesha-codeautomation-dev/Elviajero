@@ -7,44 +7,30 @@ import CheckoutForm from "../components/checkoutForm";
 import CompletePage from "../components/completePage";
 import { useAppDispatch, useAppSelector } from '../store/store';
 import { updateBookingState } from '../store/store';
+import { 
+  WATER_SPORT_COSTS, 
+  TAX_RATE,
+  COMPLIMENTARY_AMENITIES,
+  BOOKING_POLICIES,
+  formatDateForDisplay 
+} from '@/app/constants/pricing';
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""
 );
-
-// Pricing constants per product rules
-const BOAT_PRICING = {
-  1: 150,
-  3: 350,
-  6: 650,
-};
-
-const JET_SKI_RATE_PER_HOUR = 120; // for 1 hour or more
-
-// Define water sport type and costs (unit notes below)
-type WaterSport = "WaterSkiing" | "Paddleboarding" | "Snorkeling" | "Kayaking" | "Fishing" | "Wakeboarding";
-
-// Costs remain numeric but unit for some sports is per DAY (see UI). Wakeboarding remains per hour.
-const WATER_SPORT_COSTS: Record<WaterSport, number> = {
-  Paddleboarding: 40,
-  Snorkeling: 30,
-  WaterSkiing: 70,
-  Kayaking: 50,
-  Fishing: 40,
-  Wakeboarding: 70,
-};
 
 export default function App() {
   const dispatch = useAppDispatch();
   const [clientSecret, setClientSecret] = React.useState("");
   const [dpmCheckerLink, setDpmCheckerLink] = React.useState("");
   const [confirmed, setConfirmed] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
 
   // Access the booking state from Redux
   const bookingState = useAppSelector((state) => state.booking);
 
   // Generate a stable booking ID once
-  const bookingId = React.useMemo(() => `booking-${Date.now()}`, []);
+  const bookingId = React.useMemo(() => `booking-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, []);
 
   useEffect(() => {
     // Store the generated bookingId in the Redux store
@@ -60,15 +46,25 @@ export default function App() {
   }, []);
 
   React.useEffect(() => {
-    if (!bookingState.totalCost) {
-      console.error("Total cost is missing in bookingState");
+    if (!bookingState.totalCost || bookingState.totalCost <= 0) {
+      console.error("Total cost is missing or invalid in bookingState");
+      setLoading(false);
       return;
     }
 
     // Send the total cost with the booking ID to the backend
     const paymentDetails = {
       bookingId,
-      totalCost: bookingState.totalCost
+      totalCost: bookingState.totalCost,
+      bookingDetails: {
+        rentalType: bookingState.rentalType,
+        pickup: bookingState.pickupName,
+        destination: bookingState.destinationName,
+        duration: bookingState.hourlyDuration,
+        numPeople: bookingState.people,
+        bookingDate: bookingState.bookingDate,
+        pickupTime: bookingState.pickupTime
+      }
     };
 
     console.log("Sending payment details:", paymentDetails);
@@ -78,14 +74,26 @@ export default function App() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(paymentDetails),
     })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
         console.log("Payment Intent Data:", data);
-        setClientSecret(data.clientSecret);
-        setDpmCheckerLink(data.dpmCheckerLink);
+        if (data.clientSecret) {
+          setClientSecret(data.clientSecret);
+        }
+        if (data.dpmCheckerLink) {
+          setDpmCheckerLink(data.dpmCheckerLink);
+        }
       })
       .catch((error) => {
         console.error("Error creating Payment Intent:", error);
+      })
+      .finally(() => {
+        setLoading(false);
       });
   }, [bookingId, bookingState.totalCost]);
 
@@ -98,379 +106,414 @@ export default function App() {
     appearance,
   };
 
-  // Complimentary amenities only for boat bookings with 6+ hours (full day)
-  const hasComplimentaryAmenities = 
-    (bookingState.rentalType === "Boat" || bookingState.rentalType === "Boat+Jet Ski") && 
-    Number(bookingState.hourlyDuration) >= 6;
+  // Complimentary amenities for bookings over $650
+  const hasComplimentaryAmenities = bookingState.totalCost > 650;
 
-  // Helper function to get boat duration display
-  const getBoatDurationDisplay = () => {
-    if (!bookingState.pricingType) return "Not selected";
+  // Calculate subtotal (total - tax)
+  const calculateSubtotal = () => {
+    return bookingState.totalCost / (1 + TAX_RATE);
+  };
+
+  // Format price for display
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(price);
+  };
+
+  // Get duration display
+  const getDurationDisplay = () => {
+    if (!bookingState.hourlyDuration) return "Not selected";
     
-    if (bookingState.pricingType === "Hourly") {
-      // Convert to number safely
-      const hours = Number(bookingState.hourlyDuration) || 1;
-      return `${hours} hour${hours > 1 ? 's' : ''}`;
-    } else if (bookingState.pricingType === "Half Day") {
-      return "4 hours";
-    } else if (bookingState.pricingType === "Full Day") {
-      return "8 hours";
-    }
-    return "Not selected";
+    const duration = Number(bookingState.hourlyDuration);
+    if (duration === 0.25) return "15 minutes";
+    if (duration === 0.5) return "30 minutes";
+    return `${duration} hour${duration !== 1 ? 's' : ''}`;
   };
 
-  // Helper function to get jet ski duration display
-  const getJetSkiDurationDisplay = () => {
-    if (!bookingState.pricingType) return "Not selected";
+  // Calculate water sports total
+  const calculateWaterSportsTotal = () => {
+    if (!bookingState.waterSport || !Array.isArray(bookingState.waterSport)) return 0;
     
-    if (bookingState.pricingType === "Hourly") {
-      // Convert to number safely - supports fractional hours (0.25, 0.5)
-      const hours = Number(bookingState.hourlyDurationJetSki) || 1;
-      if (hours === 0.25) return "15 minutes";
-      if (hours === 0.5) return "30 minutes";
-      return `${hours} hour${hours > 1 ? 's' : ''}`;
-    } else if (bookingState.pricingType === "Half Day") {
-      return "4 hours";
-    } else if (bookingState.pricingType === "Full Day") {
-      return "8 hours";
-    }
-    return "Not selected";
+    return bookingState.waterSport.reduce((total, sport) => {
+      const participantCount = bookingState.sportPeople?.[sport] || 1;
+      const sportInfo = WATER_SPORT_COSTS[sport];
+      const sportCost = sportInfo?.cost ?? 0;
+      return total + (participantCount * sportCost);
+    }, 0);
   };
 
-  // Calculate boat cost
-  const calculateBoatCost = () => {
-    if (bookingState.boatRentalCount === 0) return 0;
-    // Pricing rules: 1h -> $150, 3h -> $350, 6h or more -> $650
-    const hours = Number(bookingState.hourlyDuration) || 1;
-    if (bookingState.pricingType === "Hourly") {
-      if (hours <= 1) return bookingState.boatRentalCount * BOAT_PRICING[1];
-      if (hours === 3) return bookingState.boatRentalCount * BOAT_PRICING[3];
-      if (hours >= 6) return bookingState.boatRentalCount * BOAT_PRICING[6];
-      // For in-between durations (2,4,5) charge the next available bracket (round up)
-      if (hours > 1 && hours < 3) return bookingState.boatRentalCount * BOAT_PRICING[3];
-      if (hours > 3 && hours < 6) return bookingState.boatRentalCount * BOAT_PRICING[6];
-      return 0;
-    } else if (bookingState.pricingType === "Half Day") {
-      return bookingState.boatRentalCount * BOAT_PRICING[3];
-    } else if (bookingState.pricingType === "Full Day") {
-      return bookingState.boatRentalCount * BOAT_PRICING[6];
-    }
-    return 0;
+  // Format date for display
+  const formatBookingDate = () => {
+    if (!bookingState.bookingDate) return "Not selected";
+    return formatDateForDisplay(bookingState.bookingDate);
   };
 
-  // Calculate jet ski cost
-  const calculateJetSkiCost = () => {
-    if (bookingState.jetSkisCount === 0) return 0;
-    // Jet ski pricing rules:
-    // 0.25h (15m) -> $50, 0.5h (30m) -> $75, 1h or more -> $120 per hour
-    const duration = Number(bookingState.hourlyDurationJetSki) || 1;
-    if (bookingState.pricingType === "Hourly") {
-      if (duration === 0.25) return bookingState.jetSkisCount * 50;
-      if (duration === 0.5) return bookingState.jetSkisCount * 75;
-      if (duration >= 1) return bookingState.jetSkisCount * JET_SKI_RATE_PER_HOUR * duration;
-      return 0;
-    } else if (bookingState.pricingType === "Half Day") {
-      return bookingState.jetSkisCount * JET_SKI_RATE_PER_HOUR * 4;
-    } else if (bookingState.pricingType === "Full Day") {
-      return bookingState.jetSkisCount * JET_SKI_RATE_PER_HOUR * 8;
-    }
-    return 0;
-  };
-
-  // Safely get boat duration for display
-  const getBoatDurationForDisplay = () => {
-    const duration = Number(bookingState.hourlyDuration) || 1;
-    return `${duration}h`;
-  };
-
-  // Safely get jet ski duration for display
-  const getJetSkiDurationForDisplay = () => {
-    const duration = Number(bookingState.hourlyDurationJetSki) || 1;
-    return `${duration}h`;
-  };
-
-  return (
-    <div className="max-w-[1440px] gap-8 flex flex-col md:flex-row mx-auto py-6 mt-12 md:py-10 px-6">
-      {/* Left Column: Booking Summary */}
-      <div className="md:w-2/3">
-        <div className="bg-white p-6 rounded-xl shadow-lg border">
-          <h1 className="text-2xl font-bold text-[#003b73] mb-6">Complete Your Payment</h1>
-          
-          <div className="mb-8">
-            <img
-              src="/checkout.jpg"
-              alt="checkout"
-              className="w-full h-48 object-cover rounded-xl"
-            />
-          </div>
-
-          {/* Booking Details Section with Hours */}
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold text-[#003b73] mb-4 pb-2 border-b">Booking Details</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-3">
-                <p className="flex justify-between">
-                  <span className="font-medium text-gray-700">Pickup Location:</span>
-                  <span className="font-semibold">{bookingState.pickupName || "Not selected"}</span>
-                </p>
-                <p className="flex justify-between">
-                  <span className="font-medium text-gray-700">Destination:</span>
-                  <span className="font-semibold">{bookingState.destinationName || "Not selected"}</span>
-                </p>
-                <p className="flex justify-between">
-                  <span className="font-medium text-gray-700">Rental Type:</span>
-                  <span className="font-semibold">{bookingState.rentalType || "Not selected"}</span>
-                </p>
-                <p className="flex justify-between">
-                  <span className="font-medium text-gray-700">Booking Date:</span>
-                  <span className="font-semibold">{bookingState.bookingDate || "Not selected"}</span>
-                </p>
-                <p className="flex justify-between">
-                  <span className="font-medium text-gray-700">Pickup Time:</span>
-                  <span className="font-semibold">{bookingState.pickupTime || "Not selected"}</span>
-                </p>
-              </div>
-              
-              <div className="space-y-3">
-                <p className="flex justify-between">
-                  <span className="font-medium text-gray-700">Number of People:</span>
-                  <span className="font-semibold">{bookingState.people}</span>
-                </p>
-                
-                {/* Rental Option */}
-                {bookingState.rentalOption && (
-                  <p className="flex justify-between">
-                    <span className="font-medium text-gray-700">Rental Option:</span>
-                    <span className="font-semibold">{bookingState.rentalOption}</span>
-                  </p>
-                )}
-                
-                {/* Boat Details with Hours */}
-                {bookingState.boatRentalCount > 0 && (
-                  <div className="space-y-1 border-l-2 border-blue-300 pl-3">
-                    <p className="flex justify-between">
-                      <span className="font-medium text-gray-700">Boat Rental:</span>
-                      <span className="font-semibold">{bookingState.boatRentalCount}</span>
-                    </p>
-                    <p className="flex justify-between text-sm text-gray-600">
-                      <span>Duration:</span>
-                      <span>{getBoatDurationDisplay()}</span>
-                    </p>
-                    <p className="flex justify-between text-sm text-gray-600">
-                      <span>Cost:</span>
-                      <span className="font-semibold">${calculateBoatCost().toFixed(2)}</span>
-                    </p>
-                  </div>
-                )}
-                
-                {/* Jet Ski Details with Hours */}
-                {bookingState.jetSkisCount > 0 && (
-                  <div className="space-y-1 border-l-2 border-green-300 pl-3">
-                    <p className="flex justify-between">
-                      <span className="font-medium text-gray-700">Jet Skis:</span>
-                      <span className="font-semibold">{bookingState.jetSkisCount}</span>
-                    </p>
-                    <p className="flex justify-between text-sm text-gray-600">
-                      <span>Duration:</span>
-                      <span>{getJetSkiDurationDisplay()}</span>
-                    </p>
-                    <p className="flex justify-between text-sm text-gray-600">
-                      <span>Cost:</span>
-                      <span className="font-semibold">${calculateJetSkiCost().toFixed(2)}</span>
-                    </p>
-                    <p className="text-xs text-gray-500 text-right">
-                      $120/hour per jet ski (15m = $50, 30m = $75)
-                    </p>
-                  </div>
-                )}
-                
-                {/* Waiting time is removed from cost calculations */}
-                
-              </div>
-            </div>
-              </div>
-            </div>
-            
-            {/* Water Sports */}
-            {bookingState.waterSport && bookingState.waterSport.length > 0 && (
-              <div className="mt-6 pt-4 border-t">
-                <p className="font-medium text-gray-700 mb-2">Water Sports:</p>
-                <div className="flex flex-col gap-2">
-                  {bookingState.waterSport.map((sport, index) => {
-                    const participantCount = Math.min(bookingState.sportPeople?.[sport] || 1, 6);
-                    const sportCost = WATER_SPORT_COSTS[sport as WaterSport] || 0;
-                    const perDaySports = ["Paddleboarding", "Kayaking", "Snorkeling", "Fishing"];
-                    const unit = perDaySports.includes(sport) ? "per day" : "per hour";
-                    return (
-                      <div key={index} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="bg-blue-100 text-blue-800 py-1 px-3 rounded-full text-sm font-medium">
-                            {sport}
-                          </span>
-                          <span className="text-sm text-gray-600">
-                            x{participantCount}
-                          </span>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-semibold">${(participantCount * sportCost).toFixed(2)}</div>
-                          <div className="text-xs text-gray-500">{unit}</div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            
-            {/* Duration Summary */}
-            {(bookingState.boatRentalCount > 0 || bookingState.jetSkisCount > 0) && bookingState.pricingType === "Hourly" && (
-              <div className="mt-6 pt-4 border-t">
-                <p className="font-medium text-gray-700 mb-3">⏱️ Rental Durations:</p>
-                <div className="flex flex-wrap gap-3">
-                  {bookingState.boatRentalCount > 0 && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 min-w-[120px]">
-                      <p className="text-sm font-medium text-blue-800">Boat</p>
-                      <p className="text-2xl font-bold text-blue-700">
-                        {getBoatDurationForDisplay()}
-                      </p>
-                    </div>
-                  )}
-                  {bookingState.jetSkisCount > 0 && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 min-w-[120px]">
-                      <p className="text-sm font-medium text-green-800">Jet Skis</p>
-                      <p className="text-2xl font-bold text-green-700">
-                        {getJetSkiDurationForDisplay()}
-                      </p>
-                    </div>
-                  )}
-                </div>
-                <p className="text-sm text-gray-500 mt-2">
-                  Note: Boat and jet ski durations can be different
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Important Information Section */}
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold text-[#003b73] mb-4 pb-2 border-b">Important Information</h2>
-            <div className="space-y-4">
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h3 className="font-semibold text-blue-800 mb-2">Booking Policies</h3>
-                <ul className="text-sm text-blue-700 space-y-2">
-                  <li className="flex items-start">
-                    <span className="mr-2">•</span>
-                    <span>All bookings can be customized to your needs and to many other destinations as long as there is availability and all safety regulations are abided by at all times.</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="mr-2">•</span>
-                    <span>Jet skis to be returned by sunset. Boat will only navigate in waves up to 5ft, winds up to 20mph.</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="mr-2">•</span>
-                    <span>We recommend island hopping jet ski tours to be taken with more than 1 jet ski.</span>
-                  </li>
-                </ul>
-              </div>
-
-              {hasComplimentaryAmenities && (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <h3 className="font-semibold text-green-800 mb-2">🎉 Complimentary Amenities Included!</h3>
-                  <p className="text-sm text-green-700 mb-2">
-                    Your full-day boat booking includes these complimentary items:
-                  </p>
-                  <ul className="text-sm text-green-700 space-y-1">
-                    <li>• Water, sodas, beer</li>
-                    <li>• Floaties and snorkelling gear</li>
-                    <li>• Fishing gear</li>
-                    <li>• Underwater GoPro and drone photos/videos</li>
-                  </ul>
-                </div>
-              )}
-
-              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <h3 className="font-semibold text-yellow-800 mb-2">Capacity & Hours</h3>
-                <ul className="text-sm text-yellow-700 space-y-2">
-                  <li className="flex items-start">
-                    <span className="mr-2">•</span>
-                    <span>Boat has 10 passengers capacity, however, we&apos;ll only take up to 6 paying passengers.</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="mr-2">•</span>
-                    <span>Working hours: <strong>Mon-Thu 9AM-5PM, Fri-Sun 9AM-6PM</strong></span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="mr-2">•</span>
-                    <span>Jet ski tours must be completed by sunset.</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-[#003b73] mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading checkout...</p>
         </div>
       </div>
+    );
+  }
 
-      {/* Right Column: Payment Section */}
-      <div className="md:w-1/3">
-        <div className="sticky top-6 bg-white p-6 rounded-xl shadow-lg border">
-          {/* Total Cost Display */}
-          <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-gray-600 text-sm">Total Amount</p>
-                <p className="text-3xl font-bold text-green-700">${bookingState.totalCost.toFixed(2)}</p>
-              </div>
-              {hasComplimentaryAmenities && (
-                <div className="bg-green-100 text-green-800 text-xs font-bold py-1 px-3 rounded-full">
-                  🎁 INCLUDES EXTRAS
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-10">
+          <h1 className="text-4xl font-bold text-[#003b73] mb-3">
+            Complete Your Booking
+          </h1>
+          <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+            Review your adventure details and complete payment to secure your booking
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column: Booking Summary */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+              {/* Booking Overview */}
+              <div className="mb-8">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Booking Overview</h2>
+                    <p className="text-gray-600 mt-1">Review your adventure details</p>
+                  </div>
+                  <div className="mt-4 sm:mt-0 bg-gradient-to-r from-green-400 to-emerald-500 text-white px-5 py-3 rounded-xl font-bold text-xl shadow-lg">
+                    {formatPrice(bookingState.totalCost)}
+                  </div>
                 </div>
-              )}
-            </div>
-            {/* Waiting time removed from cost calculations */}
-            
-            {/* Cost Breakdown */}
-            <div className="mt-3 pt-3 border-t border-green-200 text-xs text-gray-600 space-y-1">
-              <p className="flex justify-between">
-                <span>Boat Rental:</span>
-                <span>${calculateBoatCost().toFixed(2)}</span>
-              </p>
-              <p className="flex justify-between">
-                <span>Jet Skis:</span>
-                <span>${calculateJetSkiCost().toFixed(2)}</span>
-              </p>
-              {bookingState.waterSport && bookingState.waterSport.length > 0 && (
-                <p className="flex justify-between">
-                  <span>Water Sports:</span>
-                  <span>${bookingState.waterSport.reduce((total, sport) => {
-                    const participantCount = bookingState.sportPeople?.[sport] || 1;
-                    const sportCost = WATER_SPORT_COSTS[sport as WaterSport] || 0;
-                    return total + (participantCount * sportCost);
-                  }, 0).toFixed(2)}</span>
-                </p>
-              )}
-              <p className="flex justify-between text-gray-500 text-xs border-t border-green-100 mt-1 pt-1">
-                <span>Subtotal:</span>
-                <span>${(bookingState.totalCost / 1.115).toFixed(2)}</span>
-              </p>
-              <p className="flex justify-between font-semibold text-yellow-700">
-                <span>Tax (11.5%):</span>
-                <span>${(bookingState.totalCost - bookingState.totalCost / 1.115).toFixed(2)}</span>
-              </p>
+
+                {/* Hero Image */}
+                <div className="mb-8 overflow-hidden rounded-xl">
+                  <img
+                    src="/checkout.jpg"
+                    alt="Caribbean Adventure"
+                    className="w-full h-64 object-cover rounded-xl hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+
+                {/* Booking Details Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Trip Details</h3>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                          <span className="font-medium text-gray-700">Rental Type:</span>
+                          <span className="font-semibold text-gray-900">{bookingState.rentalType || "Not selected"}</span>
+                        </div>
+                        <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                          <span className="font-medium text-gray-700">Pickup:</span>
+                          <span className="font-semibold text-gray-900">{bookingState.pickupName || "Not selected"}</span>
+                        </div>
+                        {bookingState.destinationName && (
+                          <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <span className="font-medium text-gray-700">Destination:</span>
+                            <span className="font-semibold text-gray-900">{bookingState.destinationName}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                          <span className="font-medium text-gray-700">Duration:</span>
+                          <span className="font-semibold text-gray-900">{getDurationDisplay()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Schedule & People</h3>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                          <span className="font-medium text-gray-700">Date:</span>
+                          <span className="font-semibold text-gray-900">{formatBookingDate()}</span>
+                        </div>
+                        <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                          <span className="font-medium text-gray-700">Pickup Time:</span>
+                          <span className="font-semibold text-gray-900">{bookingState.pickupTime || "Not selected"}</span>
+                        </div>
+                        <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                          <span className="font-medium text-gray-700">Number of People:</span>
+                          <span className="font-semibold text-gray-900">{bookingState.people}</span>
+                        </div>
+                        {(bookingState.rentalType === "Jet Ski" || bookingState.rentalType === "Boat+Jet Ski") && (
+                          <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <span className="font-medium text-gray-700">Jet Skis:</span>
+                            <span className="font-semibold text-gray-900">{bookingState.jetSkisCount || 1}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Water Sports Section */}
+                {bookingState.waterSport && bookingState.waterSport.length > 0 && (
+                  <div className="mb-8">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Selected Water Sports</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {bookingState.waterSport.map((sport, index) => {
+                        const participantCount = bookingState.sportPeople?.[sport] || 1;
+                        const sportInfo = WATER_SPORT_COSTS[sport];
+                        const sportCost = sportInfo?.cost ?? 0;
+                        const total = participantCount * sportCost;
+                        
+                        return (
+                          <div key={index} className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-semibold text-gray-900">{sport}</h4>
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {participantCount} person{participantCount > 1 ? 's' : ''} • {sportInfo?.unit || 'per day'}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-bold text-gray-900">{formatPrice(total)}</div>
+                                <div className="text-xs text-gray-500">{formatPrice(sportCost)} each</div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Important Information Section */}
+                <div className="space-y-6">
+                  {/* Booking Policies */}
+                  <div className="p-5 bg-blue-50 border border-blue-100 rounded-xl">
+                    <h3 className="font-semibold text-blue-800 mb-3 flex items-center">
+                      <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      Booking Policies
+                    </h3>
+                    <ul className="text-sm text-blue-700 space-y-2">
+                      {BOOKING_POLICIES.map((policy, i) => (
+                        <li key={i} className="flex items-start">
+                          <span className="mr-2 mt-1 flex-shrink-0">•</span>
+                          <span>{policy}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Complimentary Amenities */}
+                  {hasComplimentaryAmenities && (
+                    <div className="p-5 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-xl">
+                      <div className="flex items-center mb-3">
+                        <svg className="h-5 w-5 text-emerald-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <h3 className="font-semibold text-emerald-800">🎉 Complimentary Amenities Included!</h3>
+                      </div>
+                      <p className="text-sm text-emerald-700 mb-3">
+                        Your booking qualifies for our premium package:
+                      </p>
+                      <ul className="text-sm text-emerald-700 space-y-1">
+                        {COMPLIMENTARY_AMENITIES.map((amenity, i) => (
+                          <li key={i} className="flex items-center">
+                            <span className="mr-2">•</span>
+                            <span>{amenity}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Capacity & Hours */}
+                  <div className="p-5 bg-yellow-50 border border-yellow-100 rounded-xl">
+                    <h3 className="font-semibold text-yellow-800 mb-3 flex items-center">
+                      <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 2a1 1 0 00-1 1v1a1 1 0 002 0V3a1 1 0 00-1-1zM4 4h3a3 3 0 006 0h3a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm2.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm2.45 4a2.5 2.5 0 10-4.9 0h4.9zM12 9a1 1 0 100 2h3a1 1 0 100-2h-3zm-1 4a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z" clipRule="evenodd" />
+                      </svg>
+                      Capacity & Hours
+                    </h3>
+                    <ul className="text-sm text-yellow-700 space-y-2">
+                      <li className="flex items-start">
+                        <span className="mr-2 mt-1 flex-shrink-0">•</span>
+                        <span>Boat has 10 passengers capacity, however, we&apos;ll only take up to 6 paying passengers.</span>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="mr-2 mt-1 flex-shrink-0">•</span>
+                        <span><strong>Working hours:</strong> Mon-Thu 9AM-5PM, Fri-Sun 9AM-6PM</span>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="mr-2 mt-1 flex-shrink-0">•</span>
+                        <span>Jet ski tours must be completed by sunset.</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Payment Form */}
-          <div>
-            {clientSecret ? (
-              <Elements options={options} stripe={stripePromise}>
-                {confirmed ? <CompletePage /> : <CheckoutForm dpmCheckerLink={dpmCheckerLink} />}
-              </Elements>
-            ) : (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003b73] mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading payment gateway...</p>
+          {/* Right Column: Payment Section */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-8 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-[#003b73] to-[#005a8e] text-white p-6">
+                <h3 className="text-xl font-bold">Payment Details</h3>
+                <p className="text-blue-100 text-sm mt-1">Complete your payment securely</p>
               </div>
-            )}
+
+              {/* Pricing Breakdown */}
+              <div className="p-6 space-y-6">
+                {/* Total Display */}
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-5">
+                  <div className="flex justify-between items-center mb-4">
+                    <div>
+                      <p className="text-gray-600 text-sm">Total Amount</p>
+                      <p className="text-3xl font-bold text-emerald-700">{formatPrice(bookingState.totalCost)}</p>
+                    </div>
+                    {hasComplimentaryAmenities && (
+                      <div className="bg-emerald-100 text-emerald-800 text-xs font-bold py-2 px-3 rounded-full whitespace-nowrap">
+                        🎁 INCLUDES EXTRAS
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Cost Breakdown */}
+                  <div className="space-y-3 pt-4 border-t border-green-200">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600">Subtotal:</span>
+                      <span className="font-medium text-gray-900">{formatPrice(calculateSubtotal())}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600">Tax (11.5%):</span>
+                      <span className="font-medium text-gray-900">{formatPrice(bookingState.totalCost - calculateSubtotal())}</span>
+                    </div>
+                    {calculateWaterSportsTotal() > 0 && (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-600">Water Sports:</span>
+                        <span className="font-medium text-gray-900">{formatPrice(calculateWaterSportsTotal())}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Booking ID */}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Booking Reference</p>
+                      <p className="text-sm font-mono text-gray-900 mt-1">{bookingId}</p>
+                    </div>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(bookingId)}
+                      className="text-[#003b73] hover:text-[#005a8e]"
+                    >
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Payment Form */}
+                <div>
+                  {clientSecret ? (
+                    <Elements options={options} stripe={stripePromise}>
+                      {confirmed ? <CompletePage /> : <CheckoutForm dpmCheckerLink={dpmCheckerLink} />}
+                    </Elements>
+                  ) : bookingState.totalCost > 0 ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003b73] mx-auto mb-4"></div>
+                      <p className="text-gray-600 mb-2">Setting up secure payment...</p>
+                      <p className="text-sm text-gray-500">This may take a moment</p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <svg className="h-12 w-12 text-red-400 mx-auto mb-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                        <p className="text-red-700 font-medium mb-2">Invalid booking total</p>
+                        <p className="text-red-600 text-sm">Please go back and complete your booking</p>
+                        <button
+                          onClick={() => window.history.back()}
+                          className="mt-4 px-4 py-2 bg-[#003b73] text-white rounded-lg hover:bg-[#005a8e] transition"
+                        >
+                          Go Back
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Security & Support */}
+                <div className="pt-4 border-t">
+                  <div className="flex items-center justify-center space-x-4 text-sm text-gray-500 mb-4">
+                    <div className="flex items-center">
+                      <svg className="h-5 w-5 text-green-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <span>Secure Payment</span>
+                    </div>
+                    <div className="flex items-center">
+                      <svg className="h-5 w-5 text-green-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                      </svg>
+                      <span>SSL Encrypted</span>
+                    </div>
+                  </div>
+                  
+                  <div className="text-center">
+                    <p className="text-xs text-gray-500">
+                      Need help? Call us at{" "}
+                      <a href="tel:+15551234567" className="text-[#003b73] hover:underline">
+                        +1 (555) 123-4567
+                      </a>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Customer Support Card */}
+            <div className="mt-6 bg-white rounded-xl shadow-md border border-gray-100 p-6">
+              <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                <svg className="h-5 w-5 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                Need Assistance?
+              </h4>
+              <p className="text-sm text-gray-600 mb-4">
+                Our customer support team is available 24/7 to help with your booking.
+              </p>
+              <div className="space-y-3">
+                <a 
+                  href="mailto:support@caribbeanadventures.com"
+                  className="flex items-center text-sm text-[#003b73] hover:text-[#005a8e] transition"
+                >
+                  <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                  </svg>
+                  support@caribbeanadventures.com
+                </a>
+                <a 
+                  href="tel:+15551234567"
+                  className="flex items-center text-sm text-[#003b73] hover:text-[#005a8e] transition"
+                >
+                  <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                  </svg>
+                  +1 (555) 123-4567
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </div>

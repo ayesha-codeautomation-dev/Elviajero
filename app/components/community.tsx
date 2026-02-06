@@ -34,14 +34,20 @@ export default async function CommunitySelection() {
   const locations: Location[] = data?.locations || [];
 
   return (
-    <div id="gallery" className="bg-white px-2 py-6 md:pb-16">
+    <div id="gallery" className="bg-white px-2 py-16 md:pb-16">
       {/* Section Title */}
-      <h2 className="text-center text-[#003b73] text-2xl lg:text-3xl font-bold mb-8">
-        {data.galleryHeading || "Gallery"}
-      </h2>
+          {/* Section Header */}
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-medium text-gray-900 mb-4">
+            {data.galleryHeading || "Photo Gallery"}
+          </h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Browse through our collection of stunning locations and memorable experiences
+          </p>
+        </div>
 
       {/* Grid Section */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-6 max-w-7xl h-full mx-auto">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-6 max-w-7xl h-full mt-6 mx-auto">
       {locations.map((location: Location, index: number) => (          <div
             key={index}
             className={`${
