@@ -17,10 +17,10 @@ interface BookingState {
   jetSkisCount: number;
   email: string;
   bookingId: string;
-  waitingTime: number;
+  rentalType?: string; // "Jet Ski" | "Boat" | "Boat+Jet Ski"
   rentalOption: string;
   hourlyDurationJetSki: number;
-  sportPeople: Record<string, number>; // updated
+  sportPeople: Record<string, number>;
 }
 
 // Initial state
@@ -37,10 +37,10 @@ const initialState: BookingState = {
   waterSport: [],
   boatRentalCount: 0,
   jetSkisCount: 0,
+  rentalType: "",
   rentalOption: "",
   email: "",
   bookingId: '',
-  waitingTime: 0,
   hourlyDurationJetSki: 0,
   sportPeople: {
     boat: 1,

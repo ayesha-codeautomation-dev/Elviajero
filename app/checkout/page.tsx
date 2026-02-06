@@ -12,30 +12,26 @@ const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""
 );
 
-// Add pricing constants
-const BOAT_HOURLY_PRICING: Record<number, number> = {
+// Pricing constants per product rules
+const BOAT_PRICING = {
   1: 150,
-  2: 300,
   3: 350,
-  4: 500,
-  5: 600,
   6: 650,
-  7: 750,
-  8: 850,
 };
 
-const JET_SKI_HOURLY_COST = 120;
-const WAITING_TIME_COST_PER_HOUR = 50;
+const JET_SKI_RATE_PER_HOUR = 120; // for 1 hour or more
 
-// Define water sport type and costs
-type WaterSport = "WaterSkiing" | "Paddleboarding" | "Snorkeling" | "Kayaking" | "Fishing";
+// Define water sport type and costs (unit notes below)
+type WaterSport = "WaterSkiing" | "Paddleboarding" | "Snorkeling" | "Kayaking" | "Fishing" | "Wakeboarding";
 
+// Costs remain numeric but unit for some sports is per DAY (see UI). Wakeboarding remains per hour.
 const WATER_SPORT_COSTS: Record<WaterSport, number> = {
   Paddleboarding: 40,
   Snorkeling: 30,
   WaterSkiing: 70,
   Kayaking: 50,
   Fishing: 40,
+  Wakeboarding: 70,
 };
 
 export default function App() {
@@ -102,8 +98,10 @@ export default function App() {
     appearance,
   };
 
-  // Check if total cost exceeds $650 for complimentary amenities
-  const hasComplimentaryAmenities = bookingState.totalCost > 650;
+  // Complimentary amenities only for boat bookings with 6+ hours (full day)
+  const hasComplimentaryAmenities = 
+    (bookingState.rentalType === "Boat" || bookingState.rentalType === "Boat+Jet Ski") && 
+    Number(bookingState.hourlyDuration) >= 6;
 
   // Helper function to get boat duration display
   const getBoatDurationDisplay = () => {
@@ -126,8 +124,10 @@ export default function App() {
     if (!bookingState.pricingType) return "Not selected";
     
     if (bookingState.pricingType === "Hourly") {
-      // Convert to number safely
+      // Convert to number safely - supports fractional hours (0.25, 0.5)
       const hours = Number(bookingState.hourlyDurationJetSki) || 1;
+      if (hours === 0.25) return "15 minutes";
+      if (hours === 0.5) return "30 minutes";
       return `${hours} hour${hours > 1 ? 's' : ''}`;
     } else if (bookingState.pricingType === "Half Day") {
       return "4 hours";
@@ -140,15 +140,20 @@ export default function App() {
   // Calculate boat cost
   const calculateBoatCost = () => {
     if (bookingState.boatRentalCount === 0) return 0;
-    
+    // Pricing rules: 1h -> $150, 3h -> $350, 6h or more -> $650
+    const hours = Number(bookingState.hourlyDuration) || 1;
     if (bookingState.pricingType === "Hourly") {
-      // Convert to number safely
-      const hours = Number(bookingState.hourlyDuration) || 1;
-      return bookingState.boatRentalCount * (BOAT_HOURLY_PRICING[hours] || 0);
+      if (hours <= 1) return bookingState.boatRentalCount * BOAT_PRICING[1];
+      if (hours === 3) return bookingState.boatRentalCount * BOAT_PRICING[3];
+      if (hours >= 6) return bookingState.boatRentalCount * BOAT_PRICING[6];
+      // For in-between durations (2,4,5) charge the next available bracket (round up)
+      if (hours > 1 && hours < 3) return bookingState.boatRentalCount * BOAT_PRICING[3];
+      if (hours > 3 && hours < 6) return bookingState.boatRentalCount * BOAT_PRICING[6];
+      return 0;
     } else if (bookingState.pricingType === "Half Day") {
-      return bookingState.boatRentalCount * 350;
+      return bookingState.boatRentalCount * BOAT_PRICING[3];
     } else if (bookingState.pricingType === "Full Day") {
-      return bookingState.boatRentalCount * 650;
+      return bookingState.boatRentalCount * BOAT_PRICING[6];
     }
     return 0;
   };
@@ -156,15 +161,18 @@ export default function App() {
   // Calculate jet ski cost
   const calculateJetSkiCost = () => {
     if (bookingState.jetSkisCount === 0) return 0;
-    
+    // Jet ski pricing rules:
+    // 0.25h (15m) -> $50, 0.5h (30m) -> $75, 1h or more -> $120 per hour
+    const duration = Number(bookingState.hourlyDurationJetSki) || 1;
     if (bookingState.pricingType === "Hourly") {
-      // Convert to number safely
-      const hours = Number(bookingState.hourlyDurationJetSki) || 1;
-      return bookingState.jetSkisCount * JET_SKI_HOURLY_COST * hours;
+      if (duration === 0.25) return bookingState.jetSkisCount * 50;
+      if (duration === 0.5) return bookingState.jetSkisCount * 75;
+      if (duration >= 1) return bookingState.jetSkisCount * JET_SKI_RATE_PER_HOUR * duration;
+      return 0;
     } else if (bookingState.pricingType === "Half Day") {
-      return bookingState.jetSkisCount * (JET_SKI_HOURLY_COST * 4);
+      return bookingState.jetSkisCount * JET_SKI_RATE_PER_HOUR * 4;
     } else if (bookingState.pricingType === "Full Day") {
-      return bookingState.jetSkisCount * (JET_SKI_HOURLY_COST * 8);
+      return bookingState.jetSkisCount * JET_SKI_RATE_PER_HOUR * 8;
     }
     return 0;
   };
@@ -206,12 +214,12 @@ export default function App() {
                   <span className="font-semibold">{bookingState.pickupName || "Not selected"}</span>
                 </p>
                 <p className="flex justify-between">
-                  <span className="font-medium text-gray-700">Drop-off Location:</span>
+                  <span className="font-medium text-gray-700">Destination:</span>
                   <span className="font-semibold">{bookingState.destinationName || "Not selected"}</span>
                 </p>
                 <p className="flex justify-between">
-                  <span className="font-medium text-gray-700">Pricing Type:</span>
-                  <span className="font-semibold">{bookingState.pricingType || "Not selected"}</span>
+                  <span className="font-medium text-gray-700">Rental Type:</span>
+                  <span className="font-semibold">{bookingState.rentalType || "Not selected"}</span>
                 </p>
                 <p className="flex justify-between">
                   <span className="font-medium text-gray-700">Booking Date:</span>
@@ -271,24 +279,15 @@ export default function App() {
                       <span className="font-semibold">${calculateJetSkiCost().toFixed(2)}</span>
                     </p>
                     <p className="text-xs text-gray-500 text-right">
-                      ${JET_SKI_HOURLY_COST}/hour per jet ski
+                      $120/hour per jet ski (15m = $50, 30m = $75)
                     </p>
                   </div>
                 )}
                 
-                {/* Waiting Time */}
-                {bookingState.waitingTime > 0 && (
-                  <div className="space-y-1 border-l-2 border-yellow-300 pl-3">
-                    <p className="flex justify-between">
-                      <span className="font-medium text-gray-700">Waiting Time:</span>
-                      <span className="font-semibold">{bookingState.waitingTime} hour{bookingState.waitingTime > 1 ? 's' : ''}</span>
-                    </p>
-                    <p className="flex justify-between text-sm text-gray-600">
-                      <span>Cost:</span>
-                      <span className="font-semibold">${(bookingState.waitingTime * WAITING_TIME_COST_PER_HOUR).toFixed(2)}</span>
-                    </p>
-                  </div>
-                )}
+                {/* Waiting time is removed from cost calculations */}
+                
+              </div>
+            </div>
               </div>
             </div>
             
@@ -298,8 +297,10 @@ export default function App() {
                 <p className="font-medium text-gray-700 mb-2">Water Sports:</p>
                 <div className="flex flex-col gap-2">
                   {bookingState.waterSport.map((sport, index) => {
-                    const participantCount = bookingState.sportPeople?.[sport] || 1;
+                    const participantCount = Math.min(bookingState.sportPeople?.[sport] || 1, 6);
                     const sportCost = WATER_SPORT_COSTS[sport as WaterSport] || 0;
+                    const perDaySports = ["Paddleboarding", "Kayaking", "Snorkeling", "Fishing"];
+                    const unit = perDaySports.includes(sport) ? "per day" : "per hour";
                     return (
                       <div key={index} className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -310,9 +311,10 @@ export default function App() {
                             x{participantCount}
                           </span>
                         </div>
-                        <span className="font-semibold">
-                          ${(participantCount * sportCost).toFixed(2)}
-                        </span>
+                        <div className="text-right">
+                          <div className="font-semibold">${(participantCount * sportCost).toFixed(2)}</div>
+                          <div className="text-xs text-gray-500">{unit}</div>
+                        </div>
                       </div>
                     );
                   })}
@@ -375,7 +377,7 @@ export default function App() {
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                   <h3 className="font-semibold text-green-800 mb-2">🎉 Complimentary Amenities Included!</h3>
                   <p className="text-sm text-green-700 mb-2">
-                    Your booking exceeds $650, so you&apos;ll receive these complimentary items:
+                    Your full-day boat booking includes these complimentary items:
                   </p>
                   <ul className="text-sm text-green-700 space-y-1">
                     <li>• Water, sodas, beer</li>
@@ -424,11 +426,7 @@ export default function App() {
                 </div>
               )}
             </div>
-            {bookingState.waitingTime > 0 && (
-              <p className="text-sm text-gray-500 mt-2">
-                Includes ${(bookingState.waitingTime * WAITING_TIME_COST_PER_HOUR).toFixed(2)} for waiting time ({bookingState.waitingTime} hours)
-              </p>
-            )}
+            {/* Waiting time removed from cost calculations */}
             
             {/* Cost Breakdown */}
             <div className="mt-3 pt-3 border-t border-green-200 text-xs text-gray-600 space-y-1">
@@ -450,6 +448,14 @@ export default function App() {
                   }, 0).toFixed(2)}</span>
                 </p>
               )}
+              <p className="flex justify-between text-gray-500 text-xs border-t border-green-100 mt-1 pt-1">
+                <span>Subtotal:</span>
+                <span>${(bookingState.totalCost / 1.115).toFixed(2)}</span>
+              </p>
+              <p className="flex justify-between font-semibold text-yellow-700">
+                <span>Tax (11.5%):</span>
+                <span>${(bookingState.totalCost - bookingState.totalCost / 1.115).toFixed(2)}</span>
+              </p>
             </div>
           </div>
 
