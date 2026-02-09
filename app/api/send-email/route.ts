@@ -16,57 +16,71 @@ export async function POST(request: Request) {
       );
     }
 
-    // Configure NodeMailer
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASSWORD,
-      },
-    });
+// Replace lines 20-28 with this improved configuration:
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 587, // Use port 587 for TLS (more reliable than 465)
+  secure: false, // true for port 465, false for port 587
+  requireTLS: true, // Require TLS
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASSWORD,
+  },
+  tls: {
+    ciphers: 'SSLv3', // Try this if TLS fails
+    rejectUnauthorized: false, // Allow self-signed certificates
+  },
+});
+
+// Add transporter verification before sending
+await transporter.verify((error) => {
+  if (error) {
+    console.error('SMTP Connection Error:', error);
+    throw new Error(`SMTP Connection failed: ${error.message}`);
+  } else {
+    console.log('SMTP Connection Verified ✅');
+  }
+});
 
     // Helper function to format duration
-    const formatDuration = (duration: string | number, pricingType: string) => {
-      if (pricingType === "Hourly") {
-        const hours = Number(duration) || 1;
-        return `${hours} hour${hours > 1 ? 's' : ''}`;
-      } else if (pricingType === "Half Day") {
-        return "4 hours";
-      } else if (pricingType === "Full Day") {
-        return "8 hours";
-      }
-      return "N/A";
-    };
+const formatDuration = (duration: string | number, rentalType: string) => {
+  const numDuration = Number(duration) || 1;
+  if (rentalType === "Jet Ski") {
+    if (numDuration === 0.25) return "15 minutes";
+    if (numDuration === 0.5) return "30 minutes";
+    return `${numDuration} hour${numDuration !== 1 ? 's' : ''}`;
+  } else {
+    return `${numDuration} hour${numDuration !== 1 ? 's' : ''}`;
+  }
+};
 
     // Reusable booking details table
     const bookingTable = `
-      <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px; border: 1px solid #ddd;">
-        <tr style="background-color: #004080; color: white;">
-          <th colspan="2" style="padding: 12px; text-align: center; font-size: 1.2em;">Booking Details</th>
-        </tr>
-        <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Booking ID:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.bookingId}</td></tr>
-        <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Pickup Location:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.pickupName || "N/A"}</td></tr>
-        <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Destination:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.destinationName || "N/A"}</td></tr>
-        <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Distance:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.distance ? bookingDetails.distance.toFixed(2) : 0} km</td></tr>
-        <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Pricing Type:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.pricingType || "N/A"}</td></tr>
-        ${bookingDetails.boatRentalCount > 0 ? `<tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Boat Duration:</td><td style="padding:10px;border-bottom:1px solid #eee;">${formatDuration(bookingDetails.hourlyDuration, bookingDetails.pricingType)}</td></tr>` : ''}
-        ${bookingDetails.jetSkisCount > 0 ? `<tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Jet Ski Duration:</td><td style="padding:10px;border-bottom:1px solid #eee;">${formatDuration(bookingDetails.hourlyDurationJetSki, bookingDetails.pricingType)}</td></tr>` : ''}
-        <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Waiting Time:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.waitingTime || 0} hour${bookingDetails.waitingTime > 1 ? 's' : ''}</td></tr>
-        <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">People:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.people}</td></tr>
-        <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Water Sports:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.waterSport?.join(", ") || "None"}</td></tr>
-        <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Boat Rentals:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.boatRentalCount}</td></tr>
-        <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Jet Skis:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.jetSkisCount}</td></tr>
-        <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Booking Date:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.bookingDate}</td></tr>
-        <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Pickup Time:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.pickupTime}</td></tr>
-        <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Rental Option:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.rentalOption || "N/A"}</td></tr>
-        <tr style="background-color: #f8f9fa;">
-          <td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #ddd;">Total Cost:</td>
-          <td style="padding:10px;font-weight:bold;color:#d9534f;border-bottom:1px solid #ddd;">$${bookingDetails.totalCost.toFixed(2)}</td>
-        </tr>
-      </table>
-    `;
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px; border: 1px solid #ddd;">
+    <tr style="background-color: #004080; color: white;">
+      <th colspan="2" style="padding: 12px; text-align: center; font-size: 1.2em;">Booking Details</th>
+    </tr>
+    <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Booking ID:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.bookingId}</td></tr>
+    <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Pickup Location:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.pickupName || "N/A"}</td></tr>
+    <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Destination:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.destinationName || "N/A"}</td></tr>
+    <!-- REMOVE distance since it's not in Redux -->
+    <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Rental Type:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.rentalType || "N/A"}</td></tr>
+    ${bookingDetails.boatRentalCount > 0 ? `<tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Boat Duration:</td><td style="padding:10px;border-bottom:1px solid #eee;">${formatDuration(bookingDetails.hourlyDuration, bookingDetails.rentalType)}</td></tr>` : ''}
+    ${bookingDetails.jetSkisCount > 0 ? `<tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Jet Ski Duration:</td><td style="padding:10px;border-bottom:1px solid #eee;">${formatDuration(bookingDetails.hourlyDurationJetSki, bookingDetails.rentalType)}</td></tr>` : ''}
+    <!-- REMOVE waitingTime since it's not in Redux -->
+    <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">People:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.people}</td></tr>
+    <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Water Sports:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.waterSport?.join(", ") || "None"}</td></tr>
+    <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Boat Rentals:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.boatRentalCount}</td></tr>
+    <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Jet Skis:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.jetSkisCount}</td></tr>
+    <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Booking Date:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.bookingDate}</td></tr>
+    <tr><td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #eee;">Pickup Time:</td><td style="padding:10px;border-bottom:1px solid #eee;">${bookingDetails.pickupTime}</td></tr>
+    <!-- REMOVE rentalOption since it's not being set -->
+    <tr style="background-color: #f8f9fa;">
+      <td style="padding:10px;font-weight:bold;color:#004080;border-bottom:1px solid #ddd;">Total Cost:</td>
+      <td style="padding:10px;font-weight:bold;color:#d9534f;border-bottom:1px solid #ddd;">$${bookingDetails.totalCost?.toFixed(2) || "0.00"}</td>
+    </tr>
+  </table>
+`;
 
     // Important Information Section
     const importantInfo = `

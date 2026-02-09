@@ -148,7 +148,7 @@ const BookNow = () => {
             if (!pickup || !destination) return [];
             const minDuration = getMinimumDuration(pickup, destination);
             if (minDuration) {
-                return [1, 2, 3, 4, 5, 6, 7, 8, 9]
+                return [1, 2, 3, 4, 5, 6, 7, 8]
                     .filter(d => d >= minDuration)
                     .map(d => ({ value: d, label: `${d} hour${d > 1 ? 's' : ''}` }));
             }

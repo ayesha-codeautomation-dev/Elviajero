@@ -52,20 +52,32 @@ export default function App() {
       return;
     }
 
-    // Send the total cost with the booking ID to the backend
-    const paymentDetails = {
-      bookingId,
-      totalCost: bookingState.totalCost,
-      bookingDetails: {
-        rentalType: bookingState.rentalType,
-        pickup: bookingState.pickupName,
-        destination: bookingState.destinationName,
-        duration: bookingState.hourlyDuration,
-        numPeople: bookingState.people,
-        bookingDate: bookingState.bookingDate,
-        pickupTime: bookingState.pickupTime
-      }
-    };
+ // Update the paymentDetails in your checkout page:
+const paymentDetails = {
+  bookingId,
+  totalCost: bookingState.totalCost,
+  bookingDetails: {
+    // Use EXACT Redux field names
+    rentalType: bookingState.rentalType || "",
+    pickupName: bookingState.pickupName || "",
+    destinationName: bookingState.destinationName || "",
+    hourlyDuration: bookingState.hourlyDuration || "1",
+    hourlyDurationJetSki: bookingState.hourlyDurationJetSki || Number(bookingState.hourlyDuration || "1"),
+    people: bookingState.people || 1,
+    bookingDate: bookingState.bookingDate || "",
+    pickupTime: bookingState.pickupTime || "",
+    waterSport: bookingState.waterSport || [],
+    sportPeople: bookingState.sportPeople || {},
+    jetSkisCount: bookingState.jetSkisCount || 0,
+    boatRentalCount: bookingState.boatRentalCount || 0,
+    totalCost: bookingState.totalCost || 0,
+    email: bookingState.email || "", // Will be added by CheckoutForm
+    // Add missing fields with defaults
+    distance: 0,
+    pricingType: bookingState.rentalType || "Hourly",
+    rentalOption: bookingState.rentalType || "",
+  }
+};
 
     console.log("Sending payment details:", paymentDetails);
 
@@ -125,14 +137,13 @@ export default function App() {
   };
 
   // Get duration display
-  const getDurationDisplay = () => {
-    if (!bookingState.hourlyDuration) return "Not selected";
-
-    const duration = Number(bookingState.hourlyDuration);
-    if (duration === 0.25) return "15 minutes";
-    if (duration === 0.5) return "30 minutes";
-    return `${duration} hour${duration !== 1 ? 's' : ''}`;
-  };
+const getDurationDisplay = () => {
+  const durationStr = bookingState.hourlyDuration || "1";
+  const duration = Number(durationStr);
+  if (duration === 0.25) return "15 minutes";
+  if (duration === 0.5) return "30 minutes";
+  return `${duration} hour${duration !== 1 ? 's' : ''}`;
+};
 
   // Calculate water sports total
   const calculateWaterSportsTotal = () => {
@@ -209,20 +220,27 @@ export default function App() {
                       <div className="space-y-3">
                         <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                           <span className="font-medium text-gray-700">Rental Type:</span>
+                          {/* Change from rentalType to rentalType */}
                           <span className="font-semibold text-gray-900">{bookingState.rentalType || "Not selected"}</span>
                         </div>
+
                         <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                           <span className="font-medium text-gray-700">Pickup:</span>
+                          {/* Change from pickupName to pickupName */}
                           <span className="font-semibold text-gray-900">{bookingState.pickupName || "Not selected"}</span>
                         </div>
+
                         {bookingState.destinationName && (
                           <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                             <span className="font-medium text-gray-700">Destination:</span>
+                            {/* Change from destinationName to destinationName */}
                             <span className="font-semibold text-gray-900">{bookingState.destinationName}</span>
                           </div>
                         )}
+
                         <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                           <span className="font-medium text-gray-700">Duration:</span>
+                          {/* hourlyDuration is string in Redux */}
                           <span className="font-semibold text-gray-900">{getDurationDisplay()}</span>
                         </div>
                       </div>
