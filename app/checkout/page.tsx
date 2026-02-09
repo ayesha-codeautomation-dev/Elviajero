@@ -7,12 +7,12 @@ import CheckoutForm from "../components/checkoutForm";
 import CompletePage from "../components/completePage";
 import { useAppDispatch, useAppSelector } from '../store/store';
 import { updateBookingState } from '../store/store';
-import { 
-  WATER_SPORT_COSTS, 
+import {
+  WATER_SPORT_COSTS,
   TAX_RATE,
   COMPLIMENTARY_AMENITIES,
   BOOKING_POLICIES,
-  formatDateForDisplay 
+  formatDateForDisplay
 } from '@/app/constants/pricing';
 
 const stripePromise = loadStripe(
@@ -127,7 +127,7 @@ export default function App() {
   // Get duration display
   const getDurationDisplay = () => {
     if (!bookingState.hourlyDuration) return "Not selected";
-    
+
     const duration = Number(bookingState.hourlyDuration);
     if (duration === 0.25) return "15 minutes";
     if (duration === 0.5) return "30 minutes";
@@ -137,7 +137,7 @@ export default function App() {
   // Calculate water sports total
   const calculateWaterSportsTotal = () => {
     if (!bookingState.waterSport || !Array.isArray(bookingState.waterSport)) return 0;
-    
+
     return bookingState.waterSport.reduce((total, sport) => {
       const participantCount = bookingState.sportPeople?.[sport] || 1;
       const sportInfo = WATER_SPORT_COSTS[sport];
@@ -164,8 +164,8 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-16 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mt-6 mx-auto">
         {/* Header */}
         <div className="text-center mb-10">
           <h1 className="text-4xl font-bold text-[#003b73] mb-3">
@@ -266,7 +266,7 @@ export default function App() {
                         const sportInfo = WATER_SPORT_COSTS[sport];
                         const sportCost = sportInfo?.cost ?? 0;
                         const total = participantCount * sportCost;
-                        
+
                         return (
                           <div key={index} className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4">
                             <div className="flex justify-between items-start">
@@ -403,21 +403,37 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Booking ID */}
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Booking Reference</p>
-                      <p className="text-sm font-mono text-gray-900 mt-1">{bookingId}</p>
+                {/* Booking ID - Improved UI */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4 md:p-5">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center mb-2">
+                        <svg className="h-5 w-5 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <p className="text-sm font-semibold text-gray-700">Booking Reference</p>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="bg-white px-3 py-2 rounded-lg border border-blue-200 shadow-sm">
+                          <p className="font-mono text-sm font-bold text-gray-900 tracking-wider">{bookingId}</p>
+                        </div>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(bookingId)}
-                      className="text-[#003b73] hover:text-[#005a8e]"
-                    >
-                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                    </button>
+                    <div className="ml-4 flex-shrink-0">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(bookingId);
+                          // Optional: Add toast notification here
+                        }}
+                        className="inline-flex items-center justify-center p-2 bg-white border border-blue-300 rounded-lg text-[#003b73] hover:bg-blue-50 hover:border-blue-400 active:bg-blue-100 transition-all duration-200 shadow-sm hover:shadow"
+                        title="Copy to clipboard"
+                      >
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span className="sr-only">Copy booking ID</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -468,50 +484,7 @@ export default function App() {
                       <span>SSL Encrypted</span>
                     </div>
                   </div>
-                  
-                  <div className="text-center">
-                    <p className="text-xs text-gray-500">
-                      Need help? Call us at{" "}
-                      <a href="tel:+15551234567" className="text-[#003b73] hover:underline">
-                        +1 (555) 123-4567
-                      </a>
-                    </p>
-                  </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Customer Support Card */}
-            <div className="mt-6 bg-white rounded-xl shadow-md border border-gray-100 p-6">
-              <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
-                <svg className="h-5 w-5 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                Need Assistance?
-              </h4>
-              <p className="text-sm text-gray-600 mb-4">
-                Our customer support team is available 24/7 to help with your booking.
-              </p>
-              <div className="space-y-3">
-                <a 
-                  href="mailto:support@caribbeanadventures.com"
-                  className="flex items-center text-sm text-[#003b73] hover:text-[#005a8e] transition"
-                >
-                  <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                  </svg>
-                  support@caribbeanadventures.com
-                </a>
-                <a 
-                  href="tel:+15551234567"
-                  className="flex items-center text-sm text-[#003b73] hover:text-[#005a8e] transition"
-                >
-                  <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                  </svg>
-                  +1 (555) 123-4567
-                </a>
               </div>
             </div>
           </div>

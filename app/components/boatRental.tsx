@@ -44,19 +44,6 @@ export default function BoatRental() {
 
   const boatRental: BoatRental[] = data?.boats || [];
 
-  // Handle details button click
-  const handleDetailsClick = (boatTitle: string) => {
-    // Scroll to booking section
-    const bookSection = document.getElementById('book');
-    if (bookSection) {
-      bookSection.scrollIntoView({ behavior: 'smooth' });
-      
-      // Could also set some state to pre-select this boat type
-      // For now, just scroll to booking
-      console.log(`Selected boat: ${boatTitle}`);
-    }
-  };
-
   if (loading) {
     return (
       <section id="boat" className="bg-gray-50 py-16 md:py-24 px-4">
@@ -136,7 +123,7 @@ export default function BoatRental() {
         <div className="mt-20 pt-16 border-t border-gray-200">
           <div className="max-w-3xl mx-auto text-center mb-12">
             <h3 className="text-2xl font-medium text-gray-900 mb-4">
-              What's Included
+              What&apos;s Included
             </h3>
             <p className="text-gray-600">
               Every boat rental includes essential features for your safety and comfort

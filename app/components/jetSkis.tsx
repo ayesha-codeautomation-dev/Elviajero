@@ -44,16 +44,6 @@ export default function JetSkisSection() {
 
   const jetSkis: JetSki[] = data?.jetSkis || [];
 
-  // Handle view details click
-  const handleDetailsClick = (jetSkiTitle: string) => {
-    // Scroll to booking section
-    const bookSection = document.getElementById('book');
-    if (bookSection) {
-      bookSection.scrollIntoView({ behavior: 'smooth' });
-      console.log(`Selected jet ski: ${jetSkiTitle}`);
-    }
-  };
-
   if (loading) {
     return (
       <section id="jet" className="bg-white py-16 md:py-24 px-4">

@@ -34,7 +34,6 @@ const SuccessPage = () => {
         pickup: bookingState.pickupName, // Removed duplicate
         destination: bookingState.destinationName, // Removed duplicate
         people: bookingState.people,
-        waitingTime: bookingState.waitingTime,
         totalPrice: parseFloat(bookingState.totalCost.toFixed(2)), // Ensure totalPrice is a number
       };
 
