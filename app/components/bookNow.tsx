@@ -329,6 +329,7 @@ const BookNow = () => {
                     bookingDate,
                     pickupTime,
                     totalCost,
+                    discountCode,
                 })
             );
 

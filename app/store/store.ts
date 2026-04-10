@@ -17,6 +17,7 @@ interface BookingState {
   jetSkisCount: number;
   email: string;
   bookingId: string;
+  discountCode: string;
   rentalType?: string; // "Jet Ski" | "Boat" | "Boat+Jet Ski"
   rentalOption: string;
   hourlyDurationJetSki: number;
@@ -41,6 +42,7 @@ const initialState: BookingState = {
   rentalOption: "",
   email: "",
   bookingId: '',
+  discountCode: "",
   hourlyDurationJetSki: 0,
   sportPeople: {
     boat: 1,

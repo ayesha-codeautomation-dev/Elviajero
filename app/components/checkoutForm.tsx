@@ -7,9 +7,10 @@ import { useAppDispatch, useAppSelector } from "../store/store";
 
 type CheckoutFormProps = {
   dpmCheckerLink: string;
+  trustedTotalCost: number;
 };
 
-export default function CheckoutForm({ dpmCheckerLink }: CheckoutFormProps) {
+export default function CheckoutForm({ dpmCheckerLink, trustedTotalCost }: CheckoutFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const router = useRouter();
@@ -165,7 +166,7 @@ export default function CheckoutForm({ dpmCheckerLink }: CheckoutFormProps) {
               Processing...
             </div>
           ) : (
-            `Pay $${(bookingState.totalCost || 0).toFixed(2)}`
+            `Pay $${(trustedTotalCost || 0).toFixed(2)}`
           )}
         </button>
 

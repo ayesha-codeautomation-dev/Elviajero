@@ -25,6 +25,9 @@ export default function App() {
   const [dpmCheckerLink, setDpmCheckerLink] = React.useState("");
   const [confirmed, setConfirmed] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
+  const [trustedTotalCost, setTrustedTotalCost] = React.useState<number>(0);
+  const [trustedSubtotal, setTrustedSubtotal] = React.useState<number>(0);
+  const [trustedTax, setTrustedTax] = React.useState<number>(0);
 
   // Access the booking state from Redux
   const bookingState = useAppSelector((state) => state.booking);
@@ -55,7 +58,7 @@ export default function App() {
  // Update the paymentDetails in your checkout page:
 const paymentDetails = {
   bookingId,
-  totalCost: bookingState.totalCost,
+  discountCode: bookingState.discountCode || "",
   bookingDetails: {
     // Use EXACT Redux field names
     rentalType: bookingState.rentalType || "",
@@ -70,7 +73,6 @@ const paymentDetails = {
     sportPeople: bookingState.sportPeople || {},
     jetSkisCount: bookingState.jetSkisCount || 0,
     boatRentalCount: bookingState.boatRentalCount || 0,
-    totalCost: bookingState.totalCost || 0,
     email: bookingState.email || "", // Will be added by CheckoutForm
     // Add missing fields with defaults
     distance: 0,
@@ -97,6 +99,15 @@ const paymentDetails = {
         if (data.clientSecret) {
           setClientSecret(data.clientSecret);
         }
+        if (typeof data.trustedTotalCost === "number") {
+          setTrustedTotalCost(data.trustedTotalCost);
+        }
+        if (typeof data.trustedSubtotal === "number") {
+          setTrustedSubtotal(data.trustedSubtotal);
+        }
+        if (typeof data.trustedTax === "number") {
+          setTrustedTax(data.trustedTax);
+        }
         if (data.dpmCheckerLink) {
           setDpmCheckerLink(data.dpmCheckerLink);
         }
@@ -119,11 +130,11 @@ const paymentDetails = {
   };
 
   // Complimentary amenities for bookings over $650
-  const hasComplimentaryAmenities = bookingState.totalCost > 650;
+  const hasComplimentaryAmenities = trustedTotalCost > 650;
 
   // Calculate subtotal (total - tax)
   const calculateSubtotal = () => {
-    return bookingState.totalCost / (1 + TAX_RATE);
+    return trustedTotalCost / (1 + TAX_RATE);
   };
 
   // Format price for display
@@ -199,7 +210,7 @@ const getDurationDisplay = () => {
                     <p className="text-gray-600 mt-1">Review your adventure details</p>
                   </div>
                   <div className="mt-4 sm:mt-0 bg-gradient-to-r from-green-400 to-emerald-500 text-white px-5 py-3 rounded-xl font-bold text-xl shadow-lg">
-                    {formatPrice(bookingState.totalCost)}
+                    {formatPrice(trustedTotalCost)}
                   </div>
                 </div>
 
@@ -393,7 +404,7 @@ const getDurationDisplay = () => {
                   <div className="flex justify-between items-center mb-4">
                     <div>
                       <p className="text-gray-600 text-sm">Total Amount</p>
-                      <p className="text-3xl font-bold text-emerald-700">{formatPrice(bookingState.totalCost)}</p>
+                      <p className="text-3xl font-bold text-emerald-700">{formatPrice(trustedTotalCost)}</p>
                     </div>
                     {hasComplimentaryAmenities && (
                       <div className="bg-emerald-100 text-emerald-800 text-xs font-bold py-2 px-3 rounded-full whitespace-nowrap">
@@ -406,11 +417,11 @@ const getDurationDisplay = () => {
                   <div className="space-y-3 pt-4 border-t border-green-200">
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-gray-600">Subtotal:</span>
-                      <span className="font-medium text-gray-900">{formatPrice(calculateSubtotal())}</span>
+                      <span className="font-medium text-gray-900">{formatPrice(trustedSubtotal || calculateSubtotal())}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-gray-600">Tax (11.5%):</span>
-                      <span className="font-medium text-gray-900">{formatPrice(bookingState.totalCost - calculateSubtotal())}</span>
+                      <span className="font-medium text-gray-900">{formatPrice(trustedTax || (trustedTotalCost - calculateSubtotal()))}</span>
                     </div>
                     {calculateWaterSportsTotal() > 0 && (
                       <div className="flex justify-between items-center text-sm">
@@ -459,9 +470,9 @@ const getDurationDisplay = () => {
                 <div>
                   {clientSecret ? (
                     <Elements options={options} stripe={stripePromise}>
-                      {confirmed ? <CompletePage /> : <CheckoutForm dpmCheckerLink={dpmCheckerLink} />}
+                      {confirmed ? <CompletePage /> : <CheckoutForm dpmCheckerLink={dpmCheckerLink} trustedTotalCost={trustedTotalCost} />}
                     </Elements>
-                  ) : bookingState.totalCost > 0 ? (
+                  ) : trustedTotalCost > 0 ? (
                     <div className="text-center py-8">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003b73] mx-auto mb-4"></div>
                       <p className="text-gray-600 mb-2">Setting up secure payment...</p>
