@@ -4,6 +4,8 @@ import React from "react";
 import { Link as ScrollLink } from "react-scroll";
 
 const Footer = () => {
+  const currentYear = new Date().getFullYear();
+
   return (
     <footer className="bg-[#f5f1eb] py-10">
       <div className="max-w-7xl mx-auto px-4">
@@ -105,7 +107,7 @@ const Footer = () => {
         <div className="flex flex-col md:flex-row justify-between items-center text-gray-600 text-sm space-y-4 md:space-y-0">
           {/* Logo */}
           <div>
-            <p>© El Viajero 2025</p>
+            <p>© El Viajero {currentYear}</p>
           </div>
 
           {/* Social Media Icons */}
