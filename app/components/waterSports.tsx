@@ -1,12 +1,8 @@
-"use client";
-
 import { client } from "@/sanity/lib/client";
 import imageUrlBuilder from "@sanity/image-url";
 import { SanityImageSource } from "@sanity/image-url/lib/types/types";
 import Link from "next/link";
-import { useState, useEffect } from "react";
 
-// Function to generate image URLs from Sanity
 const builder = imageUrlBuilder(client);
 const urlFor = (source: SanityImageSource) => builder.image(source);
 
@@ -21,50 +17,23 @@ type WaterSport = {
   };
 };
 
-export default function WaterSportsSection() {
-  const [data, setData] = useState<{ waterSports?: WaterSport[]; sectionTitle?: string; sectionDescription?: string }>({});
-  const [loading, setLoading] = useState(true);
+type WaterSportsData = {
+  waterSports?: WaterSport[];
+  sectionTitle?: string;
+  sectionDescription?: string;
+};
 
-  // Fetch data on component mount
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const query = `*[_type == 'waterSports'][0]`;
-        const fetchData = await client.fetch(query);
-        setData(fetchData || {});
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, []);
+export default async function WaterSportsSection() {
+  let data: WaterSportsData = {};
+
+  try {
+    const query = `*[_type == 'waterSports'][0]`;
+    data = (await client.fetch(query)) || {};
+  } catch (error) {
+    console.error("Error fetching water sports data:", error);
+  }
 
   const waterSports: WaterSport[] = data?.waterSports || [];
-
-  // Handle view details click
-  const handleAddToBooking = (sportTitle: string) => {
-    // Scroll to booking section
-    const bookSection = document.getElementById('book');
-    if (bookSection) {
-      bookSection.scrollIntoView({ behavior: 'smooth' });
-      console.log(`Add to booking: ${sportTitle}`);
-      // Could add logic to pre-select this water sport in the booking form
-    }
-  };
-
-  if (loading) {
-    return (
-      <section id="water" className="bg-white py-16 md:py-24 px-4">
-        <div className="max-w-7xl mx-auto text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003b73] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading water sports...</p>
-        </div>
-      </section>
-    );
-  }
 
   return (
     <section id="water" className="bg-gray-50 py-16 md:py-24 px-4">
@@ -116,12 +85,12 @@ export default function WaterSportsSection() {
 
                 {/* Button Section - Separate row */}
                 <div className="flex gap-3">
-                  <button
-                    onClick={() => handleAddToBooking(sport.title)}
-                    className="flex-1 bg-[#003b73] text-white py-3 rounded hover:bg-[#005a8e] transition-colors duration-300 font-medium"
+                  <Link
+                    href="#book"
+                    className="flex-1 bg-[#003b73] text-white py-3 rounded hover:bg-[#005a8e] transition-colors duration-300 font-medium text-center"
                   >
                     Add to Booking
-                  </button>
+                  </Link>
                 </div>
               </div>
             </div>
