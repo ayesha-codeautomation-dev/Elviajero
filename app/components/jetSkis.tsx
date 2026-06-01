@@ -1,12 +1,8 @@
-"use client";
-
 import { client } from "@/sanity/lib/client";
 import imageUrlBuilder from "@sanity/image-url";
 import { SanityImageSource } from "@sanity/image-url/lib/types/types";
 import Link from "next/link";
-import { useState, useEffect } from "react";
 
-// Function to generate image URLs from Sanity
 const builder = imageUrlBuilder(client);
 const urlFor = (source: SanityImageSource) => builder.image(source);
 
@@ -21,39 +17,23 @@ type JetSki = {
   };
 };
 
-export default function JetSkisSection() {
-  const [data, setData] = useState<{ jetSkis?: JetSki[]; sectionTitle?: string; sectionDescription?: string }>({});
-  const [loading, setLoading] = useState(true);
+type JetSkisData = {
+  jetSkis?: JetSki[];
+  sectionTitle?: string;
+  sectionDescription?: string;
+};
 
-  // Fetch data on component mount
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const query = `*[_type == 'jetSkiRental'][0]`;
-        const fetchData = await client.fetch(query);
-        setData(fetchData || {});
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, []);
+export default async function JetSkisSection() {
+  let data: JetSkisData = {};
+
+  try {
+    const query = `*[_type == 'jetSkiRental'][0]`;
+    data = (await client.fetch(query)) || {};
+  } catch (error) {
+    console.error("Error fetching jet ski data:", error);
+  }
 
   const jetSkis: JetSki[] = data?.jetSkis || [];
-
-  if (loading) {
-    return (
-      <section id="jet" className="bg-white py-16 md:py-24 px-4">
-        <div className="max-w-7xl mx-auto text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003b73] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading jet ski rentals...</p>
-        </div>
-      </section>
-    );
-  }
 
   return (
     <section id="jet" className="bg-white py-16 md:py-24 px-4">

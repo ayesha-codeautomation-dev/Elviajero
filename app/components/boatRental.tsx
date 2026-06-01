@@ -1,16 +1,12 @@
-"use client";
-
 import { client } from "@/sanity/lib/client";
 import imageUrlBuilder from "@sanity/image-url";
 import { SanityImageSource } from "@sanity/image-url/lib/types/types";
 import Link from "next/link";
-import { useState, useEffect } from "react";
 
-// Function to generate image URLs from Sanity
 const builder = imageUrlBuilder(client);
 const urlFor = (source: SanityImageSource) => builder.image(source);
 
-type BoatRental = {
+type BoatRentalItem = {
   price: string;
   description: string;
   title: string;
@@ -21,39 +17,23 @@ type BoatRental = {
   };
 };
 
-export default function BoatRental() {
-  const [data, setData] = useState<{ boats?: BoatRental[]; sectionTitle?: string; sectionDescription?: string }>({});
-  const [loading, setLoading] = useState(true);
+type BoatRentalData = {
+  boats?: BoatRentalItem[];
+  sectionTitle?: string;
+  sectionDescription?: string;
+};
 
-  // Fetch data on component mount
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const query = `*[_type == 'boatRental'][0]`;
-        const fetchData = await client.fetch(query);
-        setData(fetchData || {});
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, []);
+export default async function BoatRental() {
+  let data: BoatRentalData = {};
 
-  const boatRental: BoatRental[] = data?.boats || [];
-
-  if (loading) {
-    return (
-      <section id="boat" className="bg-gray-50 py-16 md:py-24 px-4">
-        <div className="max-w-7xl mx-auto text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003b73] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading boat rentals...</p>
-        </div>
-      </section>
-    );
+  try {
+    const query = `*[_type == 'boatRental'][0]`;
+    data = (await client.fetch(query)) || {};
+  } catch (error) {
+    console.error("Error fetching boat rental data:", error);
   }
+
+  const boatRental: BoatRentalItem[] = data?.boats || [];
 
   return (
     <section id="boat" className="bg-gray-50 py-16 md:py-24 px-4">

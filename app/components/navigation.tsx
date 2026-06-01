@@ -1,10 +1,73 @@
 "use client";
 import Link from "next/link";
 import React, { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Link as ScrollLink } from "react-scroll";
 
+const sectionLinks = [
+  { label: "Boat Rental", id: "boat" },
+  { label: "JetSkis", id: "jet" },
+  { label: "Water Sports", id: "water" },
+];
+
 export default function NavigationBar() {
+  const pathname = usePathname();
+  const isHome = pathname === "/" || pathname === "";
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const renderSectionLink = (label: string, id: string) => {
+    if (isHome) {
+      return (
+        <ScrollLink
+          to={id}
+          spy={true}
+          smooth={true}
+          offset={-50}
+          duration={500}
+          className="text-black cursor-pointer hover:text-[#e17b38] font-medium transition-colors duration-200"
+        >
+          {label}
+        </ScrollLink>
+      );
+    }
+
+    return (
+      <Link
+        href={`/#${id}`}
+        className="text-black cursor-pointer hover:text-[#e17b38] font-medium transition-colors duration-200"
+      >
+        {label}
+      </Link>
+    );
+  };
+
+  const renderMobileSectionLink = (label: string, id: string) => {
+    if (isHome) {
+      return (
+        <ScrollLink
+          to={id}
+          spy={true}
+          smooth={true}
+          offset={-50}
+          duration={500}
+          onClick={() => setIsSidebarOpen(false)}
+          className="block cursor-pointer mb-6 text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200"
+        >
+          {label}
+        </ScrollLink>
+      );
+    }
+
+    return (
+      <Link
+        href={`/#${id}`}
+        onClick={() => setIsSidebarOpen(false)}
+        className="block cursor-pointer mb-6 text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200"
+      >
+        {label}
+      </Link>
+    );
+  };
 
   return (
     <nav className="bg-white border-b shadow-md relative">
@@ -48,39 +111,9 @@ export default function NavigationBar() {
           <div className="hidden md:flex items-center justify-between text-center max-w-[1100px] w-full mx-auto relative">
             {/* Left Side Links */}
             <div className="flex items-center space-x-16">
-              <ScrollLink
-                to="boat"
-                spy={true}
-                smooth={true}
-                offset={-50}
-                duration={500}
-              >
-                <div className="text-black cursor-pointer hover:text-[#e17b38] font-medium transition-colors duration-200">
-                  Boat Rental
-                </div>
-              </ScrollLink>
-              <ScrollLink
-                to="jet"
-                spy={true}
-                smooth={true}
-                offset={-50}
-                duration={500}
-              >
-                <div className="text-black cursor-pointer hover:text-[#e17b38] font-medium transition-colors duration-200">
-                  JetSkis
-                </div>
-              </ScrollLink>
-              <ScrollLink
-                to="water"
-                spy={true}
-                smooth={true}
-                offset={-50}
-                duration={500}
-              >
-                <div className="text-black cursor-pointer hover:text-[#e17b38] font-medium transition-colors duration-200">
-                  Water Sports
-                </div>
-              </ScrollLink>
+              {sectionLinks.map((section) => (
+                <div key={section.id}>{renderSectionLink(section.label, section.id)}</div>
+              ))}
             </div>
 
             {/* Centered Logo */}
@@ -149,74 +182,24 @@ export default function NavigationBar() {
               </div>
             </div>
             <div className="p-4">
-              <ScrollLink
-                to="boat"
-                spy={true}
-                smooth={true}
-                offset={-50}
-                duration={500}
-              > <div
-                className="block cursor-pointer mt-2  mb-6 text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200"
-                onClick={() => setIsSidebarOpen(false)}
-              >
-                  Boat Rental
-                </div>
-              </ScrollLink>
-              <ScrollLink
-                to="jet"
-                spy={true}
-                smooth={true}
-                offset={-50}
-                duration={500}
-              >
-                <div
-                  className="block cursor-pointer mb-6 text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200"
-                  onClick={() => setIsSidebarOpen(false)}
-                >
-                  JetSkis Rental
-                </div>
-              </ScrollLink>
-              <ScrollLink
-                to="water"
-                spy={true}
-                smooth={true}
-                offset={-50}
-                duration={500}
-              >
-                <div
-                  className="block  cursor-pointer mb-6 text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200"
-                  onClick={() => setIsSidebarOpen(false)}
-                >
-                  Water Sports
-                </div>
-              </ScrollLink>
+              {sectionLinks.map((section) => (
+                <div key={section.id}>{renderMobileSectionLink(section.label, section.id)}</div>
+              ))}
               <Link
-              href="/faq"
-                className="block cursor-pointer  mb-6 text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200"
+                href="/faq"
                 onClick={() => setIsSidebarOpen(false)}
+                className="block cursor-pointer mb-6 text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200"
               >
                 FAQ
               </Link>
-              <ScrollLink
-                to="book"
-                spy={true}
-                smooth={true}
-                offset={-50}
-                duration={500}
-              >
-                <div
-                  className=" flex flex-row space-x-2 block cursor-pointer  mb-6 text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200"
-                  onClick={() => setIsSidebarOpen(false)}
-                >
-                  <img src="/flag.png" alt="Flag" className="w-6 h-6" />
-                  <span>Translate</span>
-                </div>
-              </ScrollLink>
-
+              <div className="flex flex-row space-x-2 items-center mb-6 text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200">
+                <img src="/flag.png" alt="Flag" className="w-6 h-6" />
+                <span>Translate</span>
+              </div>
               <Link
-              href="/contact"
-                className="block cursor-pointer  mb-6 text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200"
+                href="/contact"
                 onClick={() => setIsSidebarOpen(false)}
+                className="block cursor-pointer mb-6 text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200"
               >
                 Contact Us
               </Link>

@@ -10,10 +10,14 @@ import {
   calculateJetSkiPriceManual,
 } from "@/app/constants/pricing";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
-
 export async function POST(req: NextRequest) {
   try {
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeSecretKey) {
+      throw new Error("Missing STRIPE_SECRET_KEY environment variable.");
+    }
+
+    const stripe = new Stripe(stripeSecretKey);
     const body = await req.json();
     const { bookingId, bookingDetails, discountCode } = body as {
       bookingId?: string;
