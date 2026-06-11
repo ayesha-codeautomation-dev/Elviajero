@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { sanityClient } from "@/sanity/lib/sanity";
 
 export async function POST(request: Request) {
   try {
@@ -14,6 +15,42 @@ export async function POST(request: Request) {
         { error: "Missing paymentIntent or bookingDetails.email" },
         { status: 400 }
       );
+    }
+
+    // Save booking to Sanity
+    try {
+      // Extract date in YYYY-MM-DD format from the formatted date string
+      let dateString = bookingDetails.bookingDate;
+      if (dateString && dateString.includes(',')) {
+        // Convert from "Month Day, Year" format to YYYY-MM-DD
+        const dateObj = new Date(dateString);
+        dateString = dateObj.toISOString().split('T')[0];
+      }
+
+      const bookingToSave = {
+        _type: 'booking',
+        bookingId: bookingDetails.bookingId,
+        date: dateString, // YYYY-MM-DD format required by Sanity date type
+        timeSlot: bookingDetails.pickupTime,
+        boatCount: bookingDetails.boatRentalCount || 0,
+        jetSkiCount: bookingDetails.jetSkisCount || 0,
+        waterSports: (bookingDetails.waterSport || []).map((sport: string) => ({
+          sport: sport,
+        })),
+        rentalType: bookingDetails.rentalType,
+        numberofHours: Number(bookingDetails.hourlyDuration) || 0,
+        pickup: bookingDetails.pickupName,
+        destination: bookingDetails.destinationName,
+        people: bookingDetails.people || 1,
+        totalPrice: bookingDetails.totalCost || 0,
+      };
+
+      const createdBooking = await sanityClient.create(bookingToSave);
+      console.log("Booking saved to Sanity:", createdBooking._id);
+    } catch (sanityError) {
+      console.error("Error saving booking to Sanity:", sanityError);
+      // Don't fail the entire email process if Sanity save fails
+      // Log the error but continue with email sending
     }
 
 // Replace lines 20-28 with this improved configuration:
@@ -223,11 +260,12 @@ const formatDuration = (duration: string | number, rentalType: string) => {
     // 2. Admin Email (Simplified version)
     const ownerMailOptions = {
       from: `"Booking Notifier" <${process.env.GMAIL_USER}>`,
-      to: [
-        "eduard@elviajeropr.com",
-        "info@elviajeropr.com",
-        "eduard.olan@yahoo.com",
-      ],
+      // to: [
+      //   "eduard@elviajeropr.com",
+      //   "info@elviajeropr.com",
+      //   "eduard.olan@yahoo.com",
+      // ],
+      to: "ayesha@codeautomation.dev", // For testing purposes, send to a single email
       subject: `🚤 NEW BOOKING: ${bookingDetails.bookingId} - $${bookingDetails.totalCost}`,
       html: `
         <!DOCTYPE html>
