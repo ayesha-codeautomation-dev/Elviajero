@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { sanityClient } from "@/sanity/lib/sanity";
 
 export async function POST(request: Request) {
   try {
@@ -14,6 +15,63 @@ export async function POST(request: Request) {
         { error: "Missing paymentIntent or bookingDetails.email" },
         { status: 400 }
       );
+    }
+
+    // Save booking to Sanity
+    try {
+      const normalizeDateString = (dateString: string): string => {
+        if (!dateString) return "";
+
+        const isoMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (isoMatch) {
+          return dateString;
+        }
+
+        const mdYrMatch = dateString.match(/([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})$/);
+        if (mdYrMatch) {
+          const month = mdYrMatch[1];
+          const day = Number(mdYrMatch[2]);
+          const year = Number(mdYrMatch[3]);
+          const parsed = new Date(`${month} ${day}, ${year}`);
+          if (!Number.isNaN(parsed.getTime())) {
+            return parsed.toISOString().split('T')[0];
+          }
+        }
+
+        const parsed = new Date(dateString);
+        if (!Number.isNaN(parsed.getTime())) {
+          return parsed.toISOString().split('T')[0];
+        }
+
+        throw new Error("Invalid booking date format");
+      };
+
+      const dateString = normalizeDateString(bookingDetails.bookingDate);
+
+      const bookingToSave = {
+        _type: 'booking',
+        bookingId: bookingDetails.bookingId,
+        date: dateString, // YYYY-MM-DD format required by Sanity date type
+        timeSlot: bookingDetails.pickupTime,
+        boatCount: bookingDetails.boatRentalCount || 0,
+        jetSkiCount: bookingDetails.jetSkisCount || 0,
+        waterSports: (bookingDetails.waterSport || []).map((sport: string) => ({
+          sport: sport,
+        })),
+        rentalType: bookingDetails.rentalType,
+        numberofHours: Number(bookingDetails.hourlyDuration) || 0,
+        pickup: bookingDetails.pickupName,
+        destination: bookingDetails.destinationName,
+        people: bookingDetails.people || 1,
+        totalPrice: bookingDetails.totalCost || 0,
+      };
+
+      const createdBooking = await sanityClient.create(bookingToSave);
+      console.log("Booking saved to Sanity:", createdBooking._id);
+    } catch (sanityError) {
+      console.error("Error saving booking to Sanity:", sanityError);
+      // Don't fail the entire email process if Sanity save fails
+      // Log the error but continue with email sending
     }
 
 // Replace lines 20-28 with this improved configuration:
@@ -228,6 +286,7 @@ const formatDuration = (duration: string | number, rentalType: string) => {
         "info@elviajeropr.com",
         "eduard.olan@yahoo.com",
       ],
+      // to: "ayesha@codeautomation.dev", 
       subject: `🚤 NEW BOOKING: ${bookingDetails.bookingId} - $${bookingDetails.totalCost}`,
       html: `
         <!DOCTYPE html>
