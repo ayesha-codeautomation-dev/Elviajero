@@ -107,6 +107,16 @@ const SuccessPage = () => {
     }
   };
 
+  // Normalize booking date to ISO format for backend storage
+  const normalizeBookingDate = (dateString: string) => {
+    if (!dateString) return "";
+    const parsed = new Date(dateString);
+    if (Number.isNaN(parsed.getTime())) {
+      return dateString;
+    }
+    return parsed.toISOString().split("T")[0];
+  };
+
   // Format price
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -164,8 +174,8 @@ const SuccessPage = () => {
 
           // Date & Time
           bookingDate: currentBookingState.bookingDate
-            ? formatBookingDate(currentBookingState.bookingDate)
-            : "Not specified",
+            ? normalizeBookingDate(currentBookingState.bookingDate)
+            : "",
           pickupTime: currentBookingState.pickupTime || "Not specified",
 
           // Rental Details (EXACT Redux field names)

@@ -19,13 +19,34 @@ export async function POST(request: Request) {
 
     // Save booking to Sanity
     try {
-      // Extract date in YYYY-MM-DD format from the formatted date string
-      let dateString = bookingDetails.bookingDate;
-      if (dateString && dateString.includes(',')) {
-        // Convert from "Month Day, Year" format to YYYY-MM-DD
-        const dateObj = new Date(dateString);
-        dateString = dateObj.toISOString().split('T')[0];
-      }
+      const normalizeDateString = (dateString: string): string => {
+        if (!dateString) return "";
+
+        const isoMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (isoMatch) {
+          return dateString;
+        }
+
+        const mdYrMatch = dateString.match(/([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})$/);
+        if (mdYrMatch) {
+          const month = mdYrMatch[1];
+          const day = Number(mdYrMatch[2]);
+          const year = Number(mdYrMatch[3]);
+          const parsed = new Date(`${month} ${day}, ${year}`);
+          if (!Number.isNaN(parsed.getTime())) {
+            return parsed.toISOString().split('T')[0];
+          }
+        }
+
+        const parsed = new Date(dateString);
+        if (!Number.isNaN(parsed.getTime())) {
+          return parsed.toISOString().split('T')[0];
+        }
+
+        throw new Error("Invalid booking date format");
+      };
+
+      const dateString = normalizeDateString(bookingDetails.bookingDate);
 
       const bookingToSave = {
         _type: 'booking',
@@ -260,12 +281,12 @@ const formatDuration = (duration: string | number, rentalType: string) => {
     // 2. Admin Email (Simplified version)
     const ownerMailOptions = {
       from: `"Booking Notifier" <${process.env.GMAIL_USER}>`,
-      // to: [
-      //   "eduard@elviajeropr.com",
-      //   "info@elviajeropr.com",
-      //   "eduard.olan@yahoo.com",
-      // ],
-      to: "ayesha@codeautomation.dev", // For testing purposes, send to a single email
+      to: [
+        "eduard@elviajeropr.com",
+        "info@elviajeropr.com",
+        "eduard.olan@yahoo.com",
+      ],
+      // to: "ayesha@codeautomation.dev", 
       subject: `🚤 NEW BOOKING: ${bookingDetails.bookingId} - $${bookingDetails.totalCost}`,
       html: `
         <!DOCTYPE html>

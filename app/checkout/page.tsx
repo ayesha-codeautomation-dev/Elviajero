@@ -55,29 +55,21 @@ export default function App() {
       return;
     }
 
- // Update the paymentDetails in your checkout page:
+ // CRITICAL: Payment request does NOT include client-calculated totalCost
+// Server will recalculate everything from scratch to prevent tampering
 const paymentDetails = {
   bookingId,
   discountCode: bookingState.discountCode || "",
   bookingDetails: {
-    // Use EXACT Redux field names
+    // Input parameters ONLY - server recalculates all prices
     rentalType: bookingState.rentalType || "",
     pickupName: bookingState.pickupName || "",
     destinationName: bookingState.destinationName || "",
     hourlyDuration: bookingState.hourlyDuration || "1",
-    hourlyDurationJetSki: bookingState.hourlyDurationJetSki || Number(bookingState.hourlyDuration || "1"),
-    people: bookingState.people || 1,
-    bookingDate: bookingState.bookingDate || "",
-    pickupTime: bookingState.pickupTime || "",
     waterSport: bookingState.waterSport || [],
     sportPeople: bookingState.sportPeople || {},
     jetSkisCount: bookingState.jetSkisCount || 0,
-    boatRentalCount: bookingState.boatRentalCount || 0,
-    email: bookingState.email || "", // Will be added by CheckoutForm
-    // Add missing fields with defaults
-    distance: 0,
-    pricingType: bookingState.rentalType || "Hourly",
-    rentalOption: bookingState.rentalType || "",
+    // NOTE: totalCost intentionally omitted - server calculates it
   }
 };
 
